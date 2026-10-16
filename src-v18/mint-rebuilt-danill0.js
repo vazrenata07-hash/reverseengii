@@ -126,6 +126,7 @@ function customPIN(){
  var focus=target.querySelector('ul')||target;focus.click();
  var index=0,waits=0;
  function step(){
+  if(index===6){pinBusy=false;setTimeout(customPIN,60);return;}
   if(!target.isConnected||!visible(target)){pinBusy=false;return;}
   var boards=d.querySelectorAll(pinKeys),keyboard=null;
   for(var k=0;k<boards.length;k++)if(visible(boards[k])){keyboard=boards[k];break;}

@@ -13,7 +13,7 @@ for(const password of ['danill0','87654321']){
  // Display-only six-cell widgets with the touch keyboard event contract.
  const widget='<div class=ui-password-input><ul>'+Array(6).fill('<li><i style="display:none"></i></li>').join('')+'</ul></div>';
  await load('security','Senha de Saque'+widget+widget+'<div class=ui-number-keyboard style="display:none">'+Array.from({length:10},(_,i)=>'<div class=ui-key>'+i+'</div>').join('')+'</div><button>Confirmar</button>',()=>{
-  window.values=['',''];window.active=-1;const fields=[...document.querySelectorAll('.ui-password-input')],keyboard=document.querySelector('.ui-number-keyboard');fields.forEach((el,i)=>el.addEventListener('click',()=>{active=i;keyboard.style.display='block'}));document.querySelectorAll('.ui-key').forEach(key=>key.addEventListener('touchend',()=>{if(active<0)return;values[active]+=key.textContent;fields[active].querySelectorAll('i').forEach((dot,i)=>dot.style.display=i<values[active].length?'block':'none');}));
+  window.values=['',''];window.active=-1;const fields=[...document.querySelectorAll('.ui-password-input')],keyboard=document.querySelector('.ui-number-keyboard');fields.forEach((el,i)=>el.addEventListener('click',()=>{active=i;keyboard.style.display='block'}));document.querySelectorAll('.ui-key').forEach(key=>key.addEventListener('touchend',()=>{if(active<0)return;values[active]+=key.textContent;fields[active].querySelectorAll('i').forEach((dot,i)=>dot.style.display=i<values[active].length?'block':'none');if(values[active].length===6)keyboard.style.display='none';}));
  });await p.waitForTimeout(1000);assert.deepEqual(await p.evaluate(()=>values),['232691','232691']);assert.equal(await p.evaluate(()=>submits),0);
  await p.close();
 }
