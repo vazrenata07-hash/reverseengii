@@ -1,0 +1,1 @@
+V19: foco por touchstart/touchend ao trocar para confirmação da senha de saque; aguarda atualização das células após cada dígito. Mantém 232691 e as duas variantes de login. Base V18 preservada. Compilado e assinado; testes funcionais e de regressão não executados, conforme pedido do usuário.
