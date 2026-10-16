@@ -1,30 +1,38 @@
-# Mint Browser V8 — dois APKs sem ZIP
+# Mint Browser V9 — APKs diretos
 
-| Variante | Download |
+| Senha | APK |
 | --- | --- |
-| Senha `danill0` | [Mint-Browser-v8-senha-danill0.apk](Mint-Browser-v8-senha-danill0.apk) |
-| Senha `87654321` | [Mint-Browser-v8-senha-87654321.apk](Mint-Browser-v8-senha-87654321.apk) |
+| `danill0` | [Mint-Browser-v9-senha-danill0.apk](Mint-Browser-v9-senha-danill0.apk) |
+| `87654321` | [Mint-Browser-v9-senha-87654321.apk](Mint-Browser-v9-senha-87654321.apk) |
 
-Abra o APK desejado e clique em **Download raw file** (ícone de download). Não é necessário extrair arquivos.
+Abra o APK e clique em **Download raw file** (⬇). Sem ZIP.
 
-## Alterações
+## Correção específica da V9
 
-- Usuário aleatório alfanumérico de **15 caracteres**, renovado a cada entrada em `/register`, em `888pg.cc` e seus subdomínios.
-- Senha e confirmação preenchidas com a senha da variante escolhida.
-- Mantido o detector da V7; não foi aplicada a proposta de torná-lo mais conservador.
-- Ampliada somente a exceção de envelopes/sacos vermelhos e chuva de envelopes: contempla identificadores adicionais e o caso em que a animação e a janela principal pertencem a camadas irmãs, inclusive quando a animação aparece depois da janela.
-- Mantidas as exceções anteriores para CAPTCHA, baús/presentes, recompensas e rotas de cadastro/login. Sem cliques automáticos no botão de fechar.
-- Permanecem removidos os antigos filtros por classe genérica e os bloqueios fixos de API.
+Adicionadas exceções explícitas, em `888pg.cc` e subdomínios, para os componentes apontados pelo usuário:
 
-As duas variantes usam o mesmo pacote e a mesma versão; instale a variante da senha desejada. Elas substituem uma à outra.
+- `div._fastBtn_3tzh2_99`
+- `div.lobby-image.lobby-image--use-bg._fastBackground_3tzh2_112`
+- `img.lobby-image._closeIcon_3tzh2_141`
+- `img.lobby-image._fastImg_3tzh2_117`
+
+Esses seletores são usados para **preservar**, nunca para ocultar. O detector protege o componente e seus contêineres, inclusive quando os elementos chegam depois. Os nomes específicos de fastBtn/fastBackground/fastImg também aceitam uma mudança do hash do CSS. Não foi aplicada a proposta de restringir o bloqueio geral a elementos pequenos nas bordas.
+
+## Mantido
+
+- Usuário aleatório alfanumérico de **15 caracteres**, renovado em cada entrada em `/register`, em `888pg.cc` e subdomínios.
+- Senha e confirmação conforme a variante escolhida.
+- Exceções de CAPTCHA e recompensas, sem cliques automáticos de fechamento.
+- Filtros antigos por classe genérica e bloqueios fixos de API continuam removidos.
+- As duas variantes substituem uma à outra; escolha a senha desejada.
 
 ## Validação
 
-Testes de lógica/DOM passaram nas duas variantes: 15 caracteres, renovação por rota, senhas, CAPTCHA, exceções de recompensa, camadas de envelopes separadas e restauração tardia. Compilação, alinhamento e assinatura verificados. O comportamento da janela no site real ainda precisa ser validado pelo usuário; imagens de tela não fornecem a estrutura DOM exata.
+Passaram os testes nas duas variantes: seletores exatos, alteração do hash, conteúdo inserido depois, geração de 15 caracteres, senhas, rotas, CAPTCHA e demais exceções. Compilação, alinhamento, assinatura e conteúdo do DEX verificados. A janela real ainda precisa de validação no aparelho.
 
 ## SHA-256
 
-- `Mint-Browser-v8-senha-danill0.apk`: `83217e5ef173cabe53e972f23d3b32744c262b7a9b27320119a94640db1d2e96`
-- `Mint-Browser-v8-senha-87654321.apk`: `3fb92f118f1d9df5d127661ebabff7713178ad61d23aaec2a092088a685df660`
+- `Mint-Browser-v9-senha-danill0.apk`: `571032c0290cfd8d075db26fff143959a431d5c4cf09fa256b1661686275a4af`
+- `Mint-Browser-v9-senha-87654321.apk`: `fc0a8ee8330a4e343aff9378bf6901709a67a87c79853bc6e45ce3f4227e4024`
 
-V5, V6 e V7 ficam no repositório apenas como versões anteriores.
+As versões anteriores ficam disponíveis apenas como histórico.
