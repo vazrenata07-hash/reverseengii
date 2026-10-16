@@ -1,0 +1,33 @@
+name: Entregar Mint V19 duas senhas
+on:
+  push:
+    paths:
+      - 'delivery-v19/**'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar e disponibilizar os dois APKs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import gzip, hashlib, json
+          path = Path('delivery-v19')
+          manifest = json.loads((path / 'manifest.json').read_text())
+          assert sorted(manifest) == sorted(['Mint-Browser-v19-danill0.apk', 'Mint-Browser-v19-87654321.apk'])
+          for name, expected in manifest.items():
+              data = gzip.decompress((path / (name + '.gz')).read_bytes())
+              assert hashlib.sha256(data).hexdigest() == expected
+              Path(name).write_bytes(data)
+              print('APK verificado:', name)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Mint-Browser-v19-danill0.apk Mint-Browser-v19-87654321.apk
+          git rm -r delivery-v19
+          git commit -m "Publicar V19: foco por toque e preenchimento da confirmação da senha de saque"
+          git push origin HEAD:main
