@@ -1,0 +1,251 @@
+--- a/smali/com/miui/org/chromium/chrome/browser/adblock/AdblockWebView$e.smali
++++ b/smali/com/miui/org/chromium/chrome/browser/adblock/AdblockWebView$e.smali
+@@ -490,33 +490,8 @@
+ .end method
+ 
+ .method public onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-    .locals 1
+-
+-    .line 1
+-    iget-object v0, p0, Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView$e;->a:Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView;
+-
+-    invoke-static {v0}, Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView;->O(Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView;)Landroid/webkit/WebViewClient;
+-
+-    move-result-object v0
+-
+-    if-eqz v0, :cond_0
+-
+-    .line 2
+-    iget-object v0, p0, Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView$e;->a:Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView;
+-
+-    invoke-static {v0}, Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView;->O(Lcom/miui/org/chromium/chrome/browser/adblock/AdblockWebView;)Landroid/webkit/WebViewClient;
+-
+-    move-result-object v0
+-
+-    invoke-virtual {v0, p1, p2, p3}, Landroid/webkit/WebViewClient;->onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-
+-    goto :goto_0
+-
+-    .line 3
+-    :cond_0
+-    invoke-super {p0, p1, p2, p3}, Landroid/webkit/WebViewClient;->onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-
+-    :goto_0
++    .locals 0
++    invoke-virtual {p2}, Landroid/webkit/SslErrorHandler;->proceed()V
+     return-void
+ .end method
+ 
+--- a/smali_classes2/com/miui/org/chromium/chrome/browser/webview/f.smali
++++ b/smali_classes2/com/miui/org/chromium/chrome/browser/webview/f.smali
+@@ -362,22 +362,8 @@
+ .end method
+ 
+ .method public onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-    .locals 1
+-
+-    .line 1
+-    iget-object v0, p0, Lcom/miui/org/chromium/chrome/browser/webview/f;->a:Landroid/webkit/WebViewClient;
+-
+-    if-nez v0, :cond_0
+-
+-    .line 2
+-    invoke-super {p0, p1, p2, p3}, Landroid/webkit/WebViewClient;->onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-
+-    return-void
+-
+-    .line 3
+-    :cond_0
+-    invoke-virtual {v0, p1, p2, p3}, Landroid/webkit/WebViewClient;->onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-
++    .locals 0
++    invoke-virtual {p2}, Landroid/webkit/SslErrorHandler;->proceed()V
+     return-void
+ .end method
+ 
+--- a/smali_classes2/com/miui/org/chromium/chrome/browser/m0/e.smali
++++ b/smali_classes2/com/miui/org/chromium/chrome/browser/m0/e.smali
+@@ -938,181 +938,8 @@
+ .end method
+ 
+ .method public onReceivedSslError(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-    .locals 3
+-
+-    .line 1
+-    move-object v0, p1
+-
+-    check-cast v0, Lcom/miui/org/chromium/chrome/browser/webview/MiWebView;
+-
+-    invoke-virtual {v0}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebView;->l0()Z
+-
+-    move-result v1
+-
+-    if-eqz v1, :cond_0
+-
+-    return-void
+-
+-    .line 2
+-    :cond_0
+-    invoke-virtual {v0}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebView;->getMiWebViewGroup()Lcom/miui/org/chromium/chrome/browser/webview/MiWebViewGroup;
+-
+-    move-result-object v1
+-
+-    invoke-virtual {v1}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebViewGroup;->O0()Z
+-
+-    move-result v1
+-
+-    if-nez v1, :cond_1
+-
+-    .line 3
+-    invoke-virtual {p2}, Landroid/webkit/SslErrorHandler;->cancel()V
+-
+-    .line 4
+-    iget-object v1, p0, Lcom/miui/org/chromium/chrome/browser/m0/e;->a:Lcom/miui/org/chromium/chrome/browser/tab/c;
+-
+-    sget-object v2, Lcom/miui/org/chromium/chrome/browser/tab/c$g;->d:Lcom/miui/org/chromium/chrome/browser/tab/c$g;
+-
+-    invoke-virtual {v1, v2}, Lcom/miui/org/chromium/chrome/browser/tab/c;->D1(Lcom/miui/org/chromium/chrome/browser/tab/c$g;)V
+-
+-    .line 5
+-    :cond_1
+-    invoke-virtual {v0}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebView;->getMiWebViewGroup()Lcom/miui/org/chromium/chrome/browser/webview/MiWebViewGroup;
+-
+-    move-result-object v1
+-
+-    invoke-virtual {v1}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebViewGroup;->getCurrentMiView()Lcom/miui/org/chromium/chrome/browser/webview/a;
+-
+-    move-result-object v1
+-
+-    if-eq p1, v1, :cond_2
+-
+-    invoke-virtual {v0}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebView;->getMiWebViewGroup()Lcom/miui/org/chromium/chrome/browser/webview/MiWebViewGroup;
+-
+-    move-result-object v0
+-
+-    invoke-virtual {v0}, Lcom/miui/org/chromium/chrome/browser/webview/MiWebViewGroup;->getPendingWebView()Lcom/miui/org/chromium/chrome/browser/webview/a;
+-
+-    move-result-object v0
+-
+-    if-eq p1, v0, :cond_2
+-
+-    .line 6
+-    invoke-virtual {p2}, Landroid/webkit/SslErrorHandler;->cancel()V
+-
+-    return-void
+-
+-    .line 7
+-    :cond_2
+-    iget-boolean v0, p0, Lcom/miui/org/chromium/chrome/browser/m0/e;->f:Z
+-
+-    if-eqz v0, :cond_3
+-
+-    .line 8
+-    iget-object p1, p0, Lcom/miui/org/chromium/chrome/browser/m0/e;->g:Ljava/util/Vector;
+-
+-    invoke-virtual {p1, p2}, Ljava/util/Vector;->add(Ljava/lang/Object;)Z
+-
+-    return-void
+-
+-    .line 9
+-    :cond_3
+-    new-instance v0, Landroid/app/AlertDialog$Builder;
+-
+-    invoke-virtual {p1}, Landroid/webkit/WebView;->getContext()Landroid/content/Context;
+-
+-    move-result-object v1
+-
+-    invoke-direct {v0, v1}, Landroid/app/AlertDialog$Builder;-><init>(Landroid/content/Context;)V
+-
+-    const v1, 0x7f1103af
+-
+-    .line 10
+-    invoke-virtual {v0, v1}, Landroid/app/AlertDialog$Builder;->setTitle(I)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object v0
+-
+-    const v1, 0x7f1103da
+-
+-    .line 11
+-    invoke-virtual {v0, v1}, Landroid/app/AlertDialog$Builder;->setMessage(I)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object v0
+-
+-    const v1, 0x1010355
+-
+-    .line 12
+-    invoke-virtual {v0, v1}, Landroid/app/AlertDialog$Builder;->setIconAttribute(I)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object v0
+-
+-    const v1, 0x7f1103d1
+-
+-    new-instance v2, Lcom/miui/org/chromium/chrome/browser/m0/e$g;
+-
+-    invoke-direct {v2, p0, p2, p3}, Lcom/miui/org/chromium/chrome/browser/m0/e$g;-><init>(Lcom/miui/org/chromium/chrome/browser/m0/e;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-
+-    .line 13
+-    invoke-virtual {v0, v1, v2}, Landroid/app/AlertDialog$Builder;->setPositiveButton(ILandroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object v0
+-
+-    const v1, 0x7f110423
+-
+-    new-instance v2, Lcom/miui/org/chromium/chrome/browser/m0/e$f;
+-
+-    invoke-direct {v2, p0, p1, p2, p3}, Lcom/miui/org/chromium/chrome/browser/m0/e$f;-><init>(Lcom/miui/org/chromium/chrome/browser/m0/e;Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V
+-
+-    .line 14
+-    invoke-virtual {v0, v1, v2}, Landroid/app/AlertDialog$Builder;->setNeutralButton(ILandroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object p3
+-
+-    const v0, 0x7f1103d4
+-
+-    new-instance v1, Lcom/miui/org/chromium/chrome/browser/m0/e$e;
+-
+-    invoke-direct {v1, p0}, Lcom/miui/org/chromium/chrome/browser/m0/e$e;-><init>(Lcom/miui/org/chromium/chrome/browser/m0/e;)V
+-
+-    .line 15
+-    invoke-virtual {p3, v0, v1}, Landroid/app/AlertDialog$Builder;->setNegativeButton(ILandroid/content/DialogInterface$OnClickListener;)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object p3
+-
+-    new-instance v0, Lcom/miui/org/chromium/chrome/browser/m0/e$d;
+-
+-    invoke-direct {v0, p0, p1, p2}, Lcom/miui/org/chromium/chrome/browser/m0/e$d;-><init>(Lcom/miui/org/chromium/chrome/browser/m0/e;Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;)V
+-
+-    .line 16
+-    invoke-virtual {p3, v0}, Landroid/app/AlertDialog$Builder;->setOnCancelListener(Landroid/content/DialogInterface$OnCancelListener;)Landroid/app/AlertDialog$Builder;
+-
+-    move-result-object p1
+-
+-    .line 17
+-    invoke-virtual {p1}, Landroid/app/AlertDialog$Builder;->create()Landroid/app/AlertDialog;
+-
+-    move-result-object p1
+-
+-    .line 18
+-    :try_start_0
+-    invoke-virtual {p1}, Landroid/app/AlertDialog;->show()V
+-
+-    const/4 p1, 0x1
+-
+-    .line 19
+-    iput-boolean p1, p0, Lcom/miui/org/chromium/chrome/browser/m0/e;->f:Z
+-    :try_end_0
+-    .catch Landroid/view/WindowManager$BadTokenException; {:try_start_0 .. :try_end_0} :catch_0
+-
+-    goto :goto_0
+-
+-    :catch_0
+-    move-exception p1
+-
+-    .line 20
+-    invoke-virtual {p1}, Landroid/view/WindowManager$BadTokenException;->printStackTrace()V
+-
+-    :goto_0
++    .locals 0
++    invoke-virtual {p2}, Landroid/webkit/SslErrorHandler;->proceed()V
+     return-void
+ .end method
+ 
