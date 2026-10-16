@@ -1,14 +1,18 @@
-# Mint Browser V6
+# Mint Browser V7
 
-Versão atual: **V6**. Abra [Mint-Browser-v6-download.zip](Mint-Browser-v6-download.zip), clique no ícone de download (**Download raw file**) e extraia o ZIP para obter o APK.
+Versão atual: **V7**. Abra [Mint-Browser-v7-download.zip](Mint-Browser-v7-download.zip), clique no ícone de download (**Download raw file**) e extraia o ZIP para obter o APK.
 
-- Removidos os seletores cosméticos antigos por classe e os bloqueios fixos de API adicionados na edição anterior.
-- O detector identifica contêineres sobrepostos com controle de fechar, sem usar a classe encontrada para bloquear outros elementos. Formulários e a estrutura principal da página são preservados pelo detector.
-- Em `888pg.cc` e subdomínios, ao entrar em `/register` (inclusive por navegação interna e hash), gera um novo usuário aleatório de 9 caracteres alfanuméricos e preenche o campo combinado Celular/E-mail/Conta. Mantém o nome durante a mesma visita ao formulário.
-- Senha e confirmação: `danill0`.
+## Correções da V7
 
-Testes de lógica/DOM, recompilação, alinhamento e assinatura passaram. Resultado visual e comportamento no site real dependem do teste no aparelho; não foram verificados em Android neste ambiente.
+- O detector não executa cliques automáticos em botões de fechar.
+- Nas rotas de cadastro, login e verificação, o removedor cosmético fica suspenso para preservar o CAPTCHA, inclusive sua janela inicial ainda sem conteúdo. O preenchimento de usuário e senha continua ativo.
+- Não aplica o detector dentro de iframes; preserva janelas com iframe, canvas, slider e identificadores ou textos de CAPTCHA/verificação.
+- Exceções para as recompensas indicadas pelo usuário: bônus de login diário, bônus de aposta efetivo, baú/presente, saco e envelope. Reconhecimento por textos como ABRIR/RESGATAR/COLETAR e identificadores ou imagens com nomes de recompensa, sem regras globais que ocultem classes compartilhadas.
+- Se uma janela ocultada receber posteriormente conteúdo identificável de CAPTCHA ou recompensa, ela é restaurada, sem ter seu botão de fechar acionado.
+- Mantidos o usuário aleatório de 9 caracteres em `/register`, senha e confirmação `danill0`, e a remoção dos filtros antigos por classe e API.
 
-SHA-256 do APK V6: `efe0ddbed69c3578217d7613db633a0587d5f7fefff76379b92714922982a71d`.
+Testes de lógica/DOM, recompilação, alinhamento e assinatura passaram. As exceções precisam de validação visual no site real pelo usuário; não há reconhecimento visual das imagens em tempo real.
 
-A V5 permanece disponível apenas como versão anterior.
+SHA-256 do APK V7: `e5a7b55d5658bd335473f9fc258f68a1b9e1281dcc32f04602e4db3f8cba96dd`.
+
+V5 e V6 permanecem apenas como versões anteriores.
