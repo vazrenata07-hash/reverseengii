@@ -1,0 +1,13 @@
+const {chromium}=require('playwright'),fs=require('fs'),assert=require('node:assert/strict');
+(async()=>{const b=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
+const results=[];
+for(const file of ['work/filter-v16.js','work/rebuild-filter.js']){
+ const p=await b.newPage({viewport:{width:540,height:850}});await p.route('**/*',r=>r.fulfill({contentType:'text/html',body:'<html><body><div id="counter">0</div><svg><g id="animation"></g></svg><div id="widget"></div></body></html>'}));await p.goto('https://888pg.cc/');
+ await p.evaluate(()=>{window.fullQueries=0;const original=Document.prototype.querySelectorAll;Document.prototype.querySelectorAll=function(q){fullQueries++;return original.call(this,q)}});await p.addScriptTag({content:fs.readFileSync(file,'utf8')});await p.waitForTimeout(50);
+ const stats=await p.evaluate(async()=>{fullQueries=0;const start=performance.now();for(let i=0;i<40;i++){document.getElementById('counter').firstChild.nodeValue=''+i;document.getElementById('animation').setAttribute('style','transform:translateX('+i+'px)');document.getElementById('widget').style.transform='translateY('+i+'px)';await new Promise(r=>requestAnimationFrame(r));}await new Promise(r=>setTimeout(r,20));return {searches:fullQueries,elapsed:Math.round(performance.now()-start)};});results.push({file,...stats});await p.close();
+}
+assert(results[0].searches>=300);assert.equal(results[1].searches,0);console.log(JSON.stringify(results));
+// Image preloading only adjusts native hints; URLs and site observers stay intact.
+const p=await b.newPage({viewport:{width:540,height:850}});await p.route('**/*',r=>r.fulfill({contentType:'text/html',body:'<html><body></body></html>'}));await p.goto('https://888pg.cc/');await p.evaluate(()=>window.originalIO=IntersectionObserver);await p.addScriptTag({content:fs.readFileSync('work/rebuild-filter.js','utf8')});await p.evaluate(()=>{let i=document.createElement('img');i.className='lobby-image';i.loading='lazy';i.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';document.body.append(i);});await p.waitForTimeout(150);assert.equal(await p.locator('img').getAttribute('loading'),'eager');assert.equal(await p.evaluate(()=>IntersectionObserver===originalIO),true);assert((await p.locator('img').getAttribute('src')).startsWith('data:image/gif'));
+console.log('PASS: animation/text workload no longer triggers full-document filtering; native image hint prefetch; site IntersectionObserver and image URLs unchanged.');
+}finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});

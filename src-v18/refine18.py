@@ -1,0 +1,10 @@
+from pathlib import Path
+p=Path('work/rebuild-filter.js');s=p.read_text()
+s=s.replace('captcha|otp|one.time|verifica|sms|c[oó]digo/i.test(meta)', 'captcha|otp|one.time|sms|c[oó]digo/i.test(meta)')
+s=s.replace("return el.type==='password'||el.maxLength===6", "if(/valor|amount|quantia|balance|saldo|cpf|telefone|phone|email|pix|account|conta|username|login/i.test(meta))return false;\n return el.type==='password'||el.maxLength===6")
+s=s.replace("el.closest(security)||/captcha|otp|one.time|verifica/.test(meta)", "el.closest(security)||/captcha|otp|one.time|sms/.test(meta)||(/verifica/.test(meta)&&!pinInput(el))")
+s=s.replace("if(cells[i].textContent.trim()||cells[i].querySelector('i:not([style*=\"display: none\"])'))count++;", "var dot=cells[i].querySelector('i');\n  if(cells[i].textContent.trim()||dot&&getComputedStyle(dot).display!=='none'&&getComputedStyle(dot).visibility!=='hidden')count++;")
+s=s.replace("if(index===0&&filledCells(target)>0){pinBusy=false;return;}", "if(filledCells(target)!==index){pinBusy=false;return;}")
+p.write_text(s)
+Path('work/rebuild-apk/assets/mint-rebuilt.js').write_text(s)
+for password in ['danill0','87654321']:Path('work/variants-v18',password+'.js').write_text(s.replace("write(el,'danill0')","write(el,'"+password+"')"))
