@@ -1,0 +1,33 @@
+name: Entregar Mint reconstruído V13
+on:
+  push:
+    paths:
+      - 'delivery-v13/**'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar e disponibilizar APK
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import gzip, hashlib, json
+          path = Path('delivery-v13')
+          manifest = json.loads((path / 'manifest.json').read_text())
+          assert list(manifest) == ['Mint-Browser-v13-Refeito.apk']
+          name = next(iter(manifest))
+          data = gzip.decompress((path / (name + '.gz')).read_bytes())
+          assert hashlib.sha256(data).hexdigest() == manifest[name]
+          Path(name).write_bytes(data)
+          print('APK verificado:', name)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Mint-Browser-v13-Refeito.apk
+          git rm -r delivery-v13
+          git commit -m "Publicar APK único V13 reconstruído a partir da base enviada"
+          git push origin HEAD:main
