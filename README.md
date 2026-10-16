@@ -1,38 +1,33 @@
-# Mint Browser V9 — APKs diretos
+# Mint Browser V10 — APKs diretos
 
 | Senha | APK |
 | --- | --- |
-| `danill0` | [Mint-Browser-v9-senha-danill0.apk](Mint-Browser-v9-senha-danill0.apk) |
-| `87654321` | [Mint-Browser-v9-senha-87654321.apk](Mint-Browser-v9-senha-87654321.apk) |
+| `danill0` | [Mint-Browser-v10-senha-danill0.apk](Mint-Browser-v10-senha-danill0.apk) |
+| `87654321` | [Mint-Browser-v10-senha-87654321.apk](Mint-Browser-v10-senha-87654321.apk) |
 
 Abra o APK e clique em **Download raw file** (⬇). Sem ZIP.
 
-## Correção específica da V9
+## Correção da V10
 
-Adicionadas exceções explícitas, em `888pg.cc` e subdomínios, para os componentes apontados pelo usuário:
+A exceção do componente `_fastBtn_3tzh2_99`, `_fastBackground_3tzh2_112`, `_closeIcon_3tzh2_141` e `_fastImg_3tzh2_117` agora cobre os caminhos de ocultação personalizados **e nativos** em `888pg.cc` e seus subdomínios.
 
-- `div._fastBtn_3tzh2_99`
-- `div.lobby-image.lobby-image--use-bg._fastBackground_3tzh2_112`
-- `img.lobby-image._closeIcon_3tzh2_141`
-- `img.lobby-image._fastImg_3tzh2_117`
-
-Esses seletores são usados para **preservar**, nunca para ocultar. O detector protege o componente e seus contêineres, inclusive quando os elementos chegam depois. Os nomes específicos de fastBtn/fastBackground/fastImg também aceitam uma mudança do hash do CSS. Não foi aplicada a proposta de restringir o bloqueio geral a elementos pequenos nas bordas.
+- O detector marca o componente e seus ancestrais como protegidos para o adblock nativo.
+- `assets/adblock/css.js`: as regras nativas deixam de atingir os elementos protegidos; isso funciona também quando a regra é inserida antes de o componente ser montado.
+- `assets/adblock/hide.js`: a ocultação inline nativa respeita a proteção e registra valores anteriores para restaurar o que ela própria ocultou antes de o componente aparecer.
+- O filtro personalizado usa apenas seu atributo CSS para ocultação; não sobrescreve mais `display`, `visibility` e `pointer-events` inline do site. Remover o bloqueio não repõe um estado antigo por cima da animação atual.
+- A classificação geral dos demais flutuantes foi mantida; não foi aplicada a proposta de limitar o detector às bordas.
 
 ## Mantido
 
-- Usuário aleatório alfanumérico de **15 caracteres**, renovado em cada entrada em `/register`, em `888pg.cc` e subdomínios.
-- Senha e confirmação conforme a variante escolhida.
-- Exceções de CAPTCHA e recompensas, sem cliques automáticos de fechamento.
-- Filtros antigos por classe genérica e bloqueios fixos de API continuam removidos.
-- As duas variantes substituem uma à outra; escolha a senha desejada.
+Usuário aleatório de **15 caracteres** em cada entrada em `/register`; senha e confirmação conforme a variante; exceções de CAPTCHA e recompensas; sem cliques automáticos de fechamento. As duas variantes substituem uma à outra.
 
 ## Validação
 
-Passaram os testes nas duas variantes: seletores exatos, alteração do hash, conteúdo inserido depois, geração de 15 caracteres, senhas, rotas, CAPTCHA e demais exceções. Compilação, alinhamento, assinatura e conteúdo do DEX verificados. A janela real ainda precisa de validação no aparelho.
+Testes com os scripts reais de CSS e ocultação inline do adblock nativo, seletores exatos e ancestrais, regras antes da montagem, montagem posterior e preservação dos estilos de animação passaram nas duas senhas. Também passaram as verificações anteriores de geração de usuário, rotas e CAPTCHA, compilação, assinatura e alinhamento. A janela do site real ainda precisa de teste no aparelho.
 
 ## SHA-256
 
-- `Mint-Browser-v9-senha-danill0.apk`: `571032c0290cfd8d075db26fff143959a431d5c4cf09fa256b1661686275a4af`
-- `Mint-Browser-v9-senha-87654321.apk`: `fc0a8ee8330a4e343aff9378bf6901709a67a87c79853bc6e45ce3f4227e4024`
+- `Mint-Browser-v10-senha-danill0.apk`: `0b19cdf2115c27cc1baaa225561fae77e4b69e7cf8d4e09c2fb7927fa572a96c`
+- `Mint-Browser-v10-senha-87654321.apk`: `83651f31bda33d3b4c49e9249b48790020842d63371fed51c7c24ba81d1fa00d`
 
-As versões anteriores ficam disponíveis apenas como histórico.
+As versões anteriores ficam apenas como histórico.
