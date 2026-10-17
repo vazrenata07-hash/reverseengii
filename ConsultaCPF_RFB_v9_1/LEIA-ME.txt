@@ -1,0 +1,63 @@
+Consulta CPF RFB — v9.1 — Proxy HTTP autenticado + retomada automática
+
+COMO USAR
+1. Feche a versão anterior e extraia TODOS os arquivos deste ZIP numa pasta.
+2. Execute iniciar.bat (requer Python 3 com Tkinter no Windows).
+3. Informe IP/servidor do proxy, porta 823, usuário e senha.
+4. Clique em Testar proxy. O teste verifica autenticação e acesso HTTPS e mostra o IP de saída.
+5. Marque Ativar proxy, carregue sua lista e clique em Aplicar proxy / reabrir Edge.
+6. O rodapé deve mostrar Edge: proxy verificado e o IP observado pelo navegador.
+   O IP de outros aplicativos/computador não muda com este proxy.
+
+PROTOCOLO
+O modo normal é HTTP, que também transporta páginas HTTPS por túnel CONNECT.
+A opção HTTP/HTTPS no painel do fornecedor normalmente indica esse modo.
+Deixe 'TLS até o proxy' DESMARCADO, salvo se o fornecedor exigir conexão HTTPS
+até o próprio servidor proxy. Endereço começando com https:// também ativa TLS.
+Não é necessário configurar SocksDroid, VPN ou proxy do Windows.
+Não coloque usuário e senha dentro do campo servidor; use os campos separados.
+
+ESCOPO E CREDENCIAIS
+O Edge/Chrome dedicado à consulta e o monitor de IP usam o proxy configurado.
+Outros navegadores e aplicativos não têm suas configurações alteradas.
+A ponte local escuta apenas em 127.0.0.1 e usa uma porta livre automaticamente.
+As credenciais ficam somente na memória enquanto o programa está aberto.
+Não são incluídas na linha de comando do Edge, arquivos de configuração ou logs.
+Se o proxy falhar, não há tentativa automática de navegar diretamente.
+Para alterar os dados durante o uso: edite os campos e clique em Aplicar proxy /
+reabrir Edge. O programa aguarda o trabalhador parar, preserva os resultados e
+reinicia o navegador dedicado com a configuração atual. O CAPTCHA pendente
+poderá precisar ser resolvido novamente. Testar proxy faz somente um teste
+temporário: não altera a rota da consulta em execução.
+Fechar o programa encerra a ponte; a janela do Edge poderá permanecer aberta sem conexão.
+
+ROTAÇÃO E INTERNET INSTÁVEL
+Mantém a retomada automática de consultas pendentes e preserva resultados.
+O monitor consulta o IP aproximadamente a cada 5 segundos, com timeout de até
+15 segundos pelo proxy. Falhas não são interpretadas como IP novo.
+A recuperação continua aguardando uma leitura válida do serviço de IP.
+O botão Parar e salvar cancela novas tentativas.
+O desafio de imagens do CAPTCHA continua manual.
+
+Se o proxy troca o IP A CADA CONEXÃO, o IP obtido pelo monitor pode ser diferente
+do IP usado na página, mesmo usando o mesmo servidor e as mesmas credenciais.
+Nesse caso, desmarque 'Reabrir Edge quando o IP mudar' antes de iniciar para evitar
+reinícios contínuos. A retomada por falha de conexão permanece ativa.
+Para uma sessão consistente, use a opção de sessão fixa/sticky do fornecedor,
+quando disponível, inserindo o usuário completo fornecido por ele.
+O aplicativo não força rotações nem consegue fixar o IP por conta própria.
+
+DIAGNÓSTICO
+407: autenticação recusada; confira usuário, senha e autorização no fornecedor.
+502/falha de conexão: confira servidor, porta, internet e a opção TLS.
+O teste usa api.ipify.org; indisponibilidade desse serviço também pode fazê-lo falhar.
+O teste é pontual e não garante a disponibilidade futura nem o acesso ao site da Receita.
+
+VALIDAÇÃO DESTA REVISÃO
+Compilação Python e quatro testes locais com objetos simulados: aplicação espera
+parada do trabalhador, IP antigo descartado, navegador pela ponte aceito e
+navegador sem passagem pela ponte rejeitado. Não testado em Windows/Edge nem
+com o proxy do usuário. Não foram feitas consultas de CPF durante os testes.
+A verificação inicial do navegador depende de api.ipify.org; se falhar,
+a consulta não inicia e o programa aguarda recuperação.
+Não há novas dependências Python. Para usar EXE, gere novamente com gerar_exe.bat.
