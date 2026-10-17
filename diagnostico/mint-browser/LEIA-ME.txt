@@ -1,0 +1,28 @@
+MINT — VERSÃO EXPERIMENTAL DE DIAGNÓSTICO
+
+APK modificado a partir do arquivo fornecido. Não é uma versão oficial da Xiaomi.
+
+USO
+1. Abra o navegador. O botão flutuante “Ativar diagnóstico” aparece na tela do navegador.
+2. Toque para iniciar um log novo; o texto passa a “Desativar”.
+3. Reproduza o problema no site.
+4. Toque em “Desativar”: a gravação para e o seletor do Android permite escolher onde salvar o arquivo .jsonl.
+5. Ativar novamente descarta os registros da sessão anterior na memória. Arquivos já exportados permanecem no destino escolhido.
+O botão pode ser arrastado. Se cancelar a exportação ou houver erro ao salvar, mantenha o botão pressionado para tentar salvar novamente antes de iniciar outra sessão.
+
+REGISTROS
+Eventos de navegação e recursos nos callbacks instrumentados; códigos de erro de carregamento, HTTP e TLS; estado e configurações do WebView; versão do Android/aparelho e do WebView; rede ativa, DNS e indicação de VPN quando o Android disponibilizar; toques e gestos genéricos, sem conteúdo digitado.
+URLs são reduzidas a esquema, domínio e porta, removendo credenciais, caminho, parâmetros e fragmentos. Não grava senhas, cookies, cabeçalhos ou corpos das páginas. O log ainda contém domínios visitados e informações do aparelho/rede; revise antes de compartilhar.
+Não é uma captura de pacotes nem de todas as ações, tráfego ou decisões internas do navegador. DNS privado e VPN podem ter visibilidade limitada. Não altera DNS, VPN ou a validação de certificados.
+A gravação fica na memória, tem limite aproximado de 6 MiB e não sobrevive ao encerramento do processo pelo Android. O log informa quando atinge o limite.
+O componente adicionado não envia o log pela rede. Os comportamentos de rede preexistentes do navegador foram preservados.
+
+INSTALAÇÃO
+A assinatura é diferente da original. O Android pode exigir desinstalar o Mint existente, o que pode apagar dados locais: exporte favoritos e outros dados importantes antes. A assinatura usada é de teste; use esta versão para diagnóstico.
+
+VALIDAÇÃO REALIZADA
+Compilação Java e DEX e reconstrução do APK concluídas. Alinhamento e assinaturas v1/v2/v3 verificados. Integridade ZIP/DEX e referências do componente de diagnóstico verificadas; manifesto e 2746 arquivos não relacionados ao código preservados. Testes da lógica em JVM com substitutos de APIs Android passaram para início de sessão limpa, registro somente ativo, descarte do log pendente, sanitização e limite do buffer.
+Não foi possível executar o APK em Android neste ambiente. Botão, seletor de arquivos e compatibilidade do navegador reassinado precisam de teste no Xiaomi.
+
+SHA-256 DO APK
+13e7e001773b897f6c26e7fa0b9df5ba91ce9c3b413745abd1797f7f8c666848
