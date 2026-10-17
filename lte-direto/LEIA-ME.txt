@@ -1,42 +1,25 @@
-LTE Direto V3 — Android 10 ou superior — sem root
+LTE Direto V4 — sem root — Android 10+
 
-Instalação
-1. Desinstale o Force LTE original: este APK usa o mesmo identificador, mas tem outra assinatura.
-2. Instale LTE-Direto-v3-sem-root.apk. Se já usa LTE Direto V1/V2, pode atualizar por cima, sem desinstalar.
-3. Abra o app e habilite “LTE Direto — alternar redes” em Acessibilidade.
-4. Volte ao app: ele abre diretamente as informações do telefone.
-5. No painel flutuante, escolha os segundos, marque pelo menos duas redes e toque em Iniciar. O botão passa a Parar.
+Instale LTE-Direto-v4-sem-root.apk por cima da versão anterior. Desative e reative LTE Direto em Acessibilidade para carregar a nova capacidade de executar gestos.
 
-Se o Android bloquear a Acessibilidade de um app instalado por arquivo: Informações do app > menu de três pontos > Permitir configurações restritas. Essa opção depende da versão e do fabricante.
+Novo modo: Calibrar toques
+1. Marque as redes desejadas (pelo menos duas) e toque Calibrar toques.
+2. Feche a lista nativa, se estiver aberta, tocando fora dela. Toque Continuar na barra de calibração.
+3. Toque na linha que abre o seletor de redes.
+4. Com a lista aberta, marque os cantos superior esquerdo e inferior direito da área visível da lista. Esses dois toques não selecionam itens.
+5. O app rola a lista até o início. Para 3G, role e toque WCDMA only ou UMTS only. Para 4G, role e toque LTE only. Para 5G, escolha NR/LTE ou NR only, se disponíveis. Siga a indicação da barra em cada etapa.
+6. Se a barra cobrir algo, use Mover para levá-la à outra borda da tela.
+7. Ao terminar, toque Iniciar. No modo recolhido, toque no título Parar para interromper, ou expanda com + e use o botão Parar.
 
-Uso
-- Arraste o título para mover o painel; use −/+ para recolher/expandir.
-- No modo recolhido, tocar no título “Parar” interrompe o ciclo.
-- O botão × para e fecha o painel; reabra o app para mostrar novamente.
-- Mantenha as informações do telefone abertas e a tela desbloqueada.
-- Parar mantém a última preferência selecionada, sem restaurar a anterior.
-- 3G seleciona WCDMA only/UMTS only. 4G seleciona LTE only. 5G seleciona NR/LTE ou NR only, conforme as opções visíveis na lista.
-- O intervalo é contado entre a confirmação da seleção na interface e a próxima tentativa. Os toques e o modem acrescentam algum tempo.
-- A seleção na interface não comprova a conexão efetiva. A disponibilidade de rede e um IP diferente dependem do aparelho e da operadora.
-
-Implementação
-Reconstrução simplificada a partir do comportamento de abertura identificado no XAPK fornecido. A interface e os componentes de publicidade do app original foram substituídos por código novo. Não é uma versão oficial do Force LTE.
-O serviço usa cliques de Acessibilidade no seletor nativo de rede, sem comandos root. A leitura de telas é restrita aos pacotes Configurações e Telefone. Não há permissão de internet, anúncios ou rastreamento.
-Compatibilidade depende de o fabricante expor a tela RadioInfo e seu seletor pela Acessibilidade. Se o seletor não for reconhecido ou a opção não existir, o ciclo para e informa o motivo.
+Funcionamento e limites
+A V4 acrescenta uma sequência de gestos ensinada pelo usuário como alternativa à leitura de elementos da tela. Cada troca abre o seletor, rola a lista para o início e repete os gestos gravados para a rede escolhida. Essa preparação leva alguns segundos além do intervalo configurado.
+A janela e a página devem permanecer na mesma posição, com a mesma orientação e o mesmo tamanho de tela usados na calibração. Se o layout mudar, calibre novamente. Mantenha a tela desbloqueada e não interaja com ela enquanto o ciclo executa.
+A seleção por gestos não pode confirmar o valor da rede quando o Android não expõe a árvore de Acessibilidade. A mensagem Toques enviados indica somente a conclusão dos gestos, não a conexão efetiva.
+Ao receber uma mudança de janela para outro aplicativo, o ciclo para. Ao bloquear a tela, também para. Uma injeção de gesto já iniciada pode terminar antes da parada.
+Parar mantém a última preferência de rede. A disponibilidade de 3G/4G/5G e um IP diferente dependem da operadora e do aparelho.
+O botão Diagnóstico mostra apenas a quantidade de janelas e os nomes de seus pacotes; não inclui IMEI ou número de telefone.
+Sem root, anúncios, permissão de internet ou envio de dados. Os perfis de toque ficam no aparelho. A leitura de conteúdo continua restrita a Configurações e Telefone; eventos de mudança de janela de outros apps são usados para interromper o ciclo.
+Reconstrução independente a partir do comportamento de abertura do XAPK fornecido; não é uma versão oficial do Force LTE. O Force LTE original tem outra assinatura e deve ser desinstalado para a primeira instalação desta reconstrução.
 
 Verificação
-APK compilado, alinhado e assinatura validada. Quinze verificações dos nomes de redes e marcadores de tela passaram. Não houve teste de execução em aparelho/emulador; a alternância e a obtenção de outro IP precisam ser verificadas no telefone.
-
-Correções V2
-- O painel é solicitado explicitamente ao abrir as informações do telefone.
-- Atualizações frequentes da tela não adiam a verificação do painel indefinidamente.
-- Reconhecimento pelo texto do seletor quando o fabricante não expõe os IDs esperados.
-- A abertura aguarda o serviço conectar e impede pular a ativação.
-- Se o sistema rejeitar a janela, o app mostra um aviso em vez de falhar silenciosamente.
-
-Correções V3
-- O painel não toma o foco da tela nativa, exceto durante a edição dos segundos.
-- Iniciar devolve o foco e aguarda a atualização da árvore de Acessibilidade antes de procurar o seletor.
-- As flags de leitura de janelas e IDs são reforçadas quando o serviço conecta.
-- Falha na leitura do seletor não fecha mais o painel. Ele permanece até × ou bloqueio da tela.
-- Atualização com mesma assinatura; se o Android não reconectar o serviço após a instalação, desative e reative LTE Direto em Acessibilidade.
+APK compilado, alinhado, integridade e assinatura verificados. Quinze verificações de correspondência de opções e marcadores passaram. Não houve execução em aparelho ou emulador: o novo modo de calibração precisa ser testado no telefone.
