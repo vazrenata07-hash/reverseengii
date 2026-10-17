@@ -1,8 +1,8 @@
-LTE Direto V2 — Android 10 ou superior — sem root
+LTE Direto V3 — Android 10 ou superior — sem root
 
 Instalação
 1. Desinstale o Force LTE original: este APK usa o mesmo identificador, mas tem outra assinatura.
-2. Instale LTE-Direto-v2-sem-root.apk. Se já usa LTE Direto V1, pode atualizar por cima, sem desinstalar.
+2. Instale LTE-Direto-v3-sem-root.apk. Se já usa LTE Direto V1/V2, pode atualizar por cima, sem desinstalar.
 3. Abra o app e habilite “LTE Direto — alternar redes” em Acessibilidade.
 4. Volte ao app: ele abre diretamente as informações do telefone.
 5. No painel flutuante, escolha os segundos, marque pelo menos duas redes e toque em Iniciar. O botão passa a Parar.
@@ -33,3 +33,10 @@ Correções V2
 - Reconhecimento pelo texto do seletor quando o fabricante não expõe os IDs esperados.
 - A abertura aguarda o serviço conectar e impede pular a ativação.
 - Se o sistema rejeitar a janela, o app mostra um aviso em vez de falhar silenciosamente.
+
+Correções V3
+- O painel não toma o foco da tela nativa, exceto durante a edição dos segundos.
+- Iniciar devolve o foco e aguarda a atualização da árvore de Acessibilidade antes de procurar o seletor.
+- As flags de leitura de janelas e IDs são reforçadas quando o serviço conecta.
+- Falha na leitura do seletor não fecha mais o painel. Ele permanece até × ou bloqueio da tela.
+- Atualização com mesma assinatura; se o Android não reconectar o serviço após a instalação, desative e reative LTE Direto em Acessibilidade.
