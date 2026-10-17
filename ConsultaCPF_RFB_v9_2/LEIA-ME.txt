@@ -1,0 +1,49 @@
+Consulta CPF RFB — v9.2 — Ativação do proxy
+
+COMO USAR
+1. Feche a versão anterior e extraia TODOS os arquivos deste ZIP.
+2. Execute iniciar.bat (Python 3 com Tkinter no Windows).
+3. Preencha IP / servidor, porta e, se necessário, usuário e senha.
+4. Marque Ativar proxy. O programa aplica a conexão e atualiza o IP público
+   no rodapé, mesmo sem carregar uma lista e sem iniciar consultas.
+5. Carregue a lista e clique em Iniciar / continuar.
+
+Se uma consulta estiver em execução ao marcar/desmarcar Ativar proxy, o programa
+aguarda sua parada, fecha o navegador dedicado e retoma com a nova configuração.
+Os resultados concluídos são preservados. Um CAPTCHA pendente pode precisar
+ser resolvido novamente. Parar e salvar cancela a retomada automática.
+Para editar um proxy já marcado, altere os campos e clique em Aplicar alterações.
+O botão fica numa linha própria e não ocupa o campo de IP / servidor.
+Testar proxy é somente um diagnóstico; marcar Ativar proxy aplica a configuração.
+Ao desmarcar, aplica a conexão direta e consulta novamente seu IP público.
+
+IP EXIBIDO E FALHAS
+O rodapé mostra o IP público obtido pela rota ativa do programa. Com proxy ativo,
+a consulta do IP passa pela mesma ponte local usada pelo Edge dedicado.
+O Edge também verifica sua própria rota antes de abrir as consultas da Receita.
+Se a ativação falhar, não mostra o IP direto como se fosse o IP do proxy e não
+recorre à conexão direta. Confira servidor, porta, autenticação e disponibilidade.
+Outros aplicativos e navegadores não têm seu IP alterado.
+A consulta do IP depende de api.ipify.org e pode demorar alguns segundos.
+
+PROTOCOLO E CREDENCIAIS
+HTTP transporta páginas HTTPS por CONNECT. Deixe TLS até o proxy desmarcado,
+salvo se o fornecedor exigir TLS até o próprio servidor proxy.
+Não coloque credenciais dentro do endereço; use os campos separados.
+Credenciais ficam em memória, sem inclusão nos argumentos do Edge ou logs.
+A ponte local escuta apenas em 127.0.0.1 e usa uma porta livre.
+Para gerar EXE atualizado, execute gerar_exe.bat. Um EXE antigo não muda
+quando apenas os arquivos Python são substituídos.
+
+PROXY ROTATIVO
+Se o fornecedor muda o IP a cada conexão, o monitor e o Edge podem mostrar IPs
+diferentes. Para evitar reinícios contínuos, desmarque Reabrir Edge quando o IP
+mudar ou use uma sessão sticky/fixa fornecida pelo serviço.
+
+VALIDAÇÃO
+Compilação Python e sete testes locais: verificação de rota do navegador,
+rejeição de desvio da ponte, descarte de IP antigo e leituras atrasadas,
+ativação sem lista aguardando o trabalhador anterior, atualização do IP via
+ponte ativa, falha sem reaproveitar IP direto e ligação/layout dos controles.
+Testes de aplicação usam objetos simulados. Sem execução da janela no Windows,
+sem teste com o fornecedor do usuário e sem consultas de CPF nos testes.
