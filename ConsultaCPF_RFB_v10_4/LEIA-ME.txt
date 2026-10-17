@@ -1,0 +1,140 @@
+SOMENTE O WIDGET DO CAPTCHA — v10.4
+
+COMO ATIVAR
+1. Feche a versão anterior e sua janela dedicada do navegador.
+2. Extraia TODOS os arquivos deste ZIP e execute iniciar.bat.
+3. Settings > Mostrar somente o CAPTCHA no canto superior direito > Salvar.
+4. Carregue a lista e clique Iniciar. Se já estava consultando, pare e inicie
+   novamente para aplicar a mudança.
+
+O QUE APARECE
+Somente o recorte do widget real, atualizado dentro do programa, sem abas,
+barra de endereço ou restante da página. Não usa SetParent nem incorpora
+uma janela inteira do Edge dentro de outra janela.
+O clique sobre esse recorte é encaminhado ao CAPTCHA real pelo navegador.
+A barra de progresso continua curta, à esquerda do recorte.
+Ampliar mostra somente o recorte do desafio, se houver. Reduzir para o canto
+retorna ao checkbox pequeno. Não abre uma página completa nessa área.
+O formulário, sessão e HTML de resultado ficam no navegador interno. A tabela
+continua mostrando a situação cadastral identificada no resultado original.
+Desmarcar a opção em Settings restaura o navegador normal no próximo Iniciar.
+
+CLIQUE E CONFIRMAÇÃO
+O app tenta um clique normal no checkbox e, se não observar resposta, uma
+chamada ao início oficial da verificação. Enviar o comando de clique NÃO é
+tratado como sucesso. Só informa início confirmado quando detecta o desafio
+ou o token de resposta da verificação. Apenas um token novo e válido libera
+uma tentativa de envio, conforme as verificações da versão original.
+Após 15 segundos sem confirmação, a mensagem pede clique manual no painel.
+Você pode clicar no recorte. Desafios continuam manuais; use Ampliar.
+Cliques de uma página anterior são descartados para evitar atingir outro CPF.
+Não há promessa de liberação automática pelo fornecedor do CAPTCHA.
+
+COMO É EXIBIDO
+O navegador continua executando o formulário original em modo normal e fora
+da área visível da tela, com perfil e porta próprios. O painel exibe capturas
+recortadas do widget, obtidas localmente por CDP, em torno de duas vezes por
+segundo. Não há envio das imagens a terceiros nem download de uma página
+extra para formar o painel. A interação é encaminhada à mesma sessão.
+O navegador não é headless. O programa não carrega o widget solto em outra
+origem, pois ele depende do formulário e da sessão originais.
+Mostrar apenas o recorte não elimina o tráfego necessário à página e ao
+CAPTCHA. Os bloqueios de decoração da versão original continuam ativos.
+
+EXECUTAR A VERSÃO CORRETA
+Use iniciar.bat desta pasta. Para EXE, gere novamente com gerar_exe.bat e use
+ConsultaCPF_RFB_SO_CAPTCHA_v10_4.exe. O EXE anterior não recebe essas alterações.
+
+VALIDAÇÃO
+27 testes locais: política de Wi-Fi e retomada, captura restrita ao retângulo
+do widget, confirmação independente do envio de clique, desafio ampliado,
+clique encaminhado com escala e descarte de clique em página antiga.
+Chromium real contra formulário HTTP local: clique marcou checkbox de teste,
+confirmação posterior detectada, recorte sem formulário/abas e clique do painel
+encaminhado corretamente. O HTML e os campos de formulário foram preservados.
+Interface Tk validada em tela virtual: painel pequeno, imagem renderizada,
+clique enfileirado, Ampliar/Reduzir, Settings e barra curta.
+Não executado com CAPTCHA real ou Windows/Edge; o posicionamento nativo da
+janela fora da área visível ainda precisa ser validado no computador do usuário.
+Nenhuma consulta externa de CPF foi realizada nos testes.
+
+--- INSTRUÇÕES DAS REDES WI-FI ---
+
+Consulta CPF RFB — v10.4 — Somente CAPTCHA
+
+Base: ConsultaCPF_RFB_v9_IP_Publico_Corrigido.zip enviado pelo usuário.
+Esta versão adiciona Settings e troca entre redes Wi-Fi do Windows.
+
+PRIMEIRO USO
+1. Feche a versão anterior e extraia TODOS os arquivos do ZIP numa pasta.
+2. Pelo Wi-Fi do Windows, conecte a cada rede desejada uma vez e salve a senha.
+3. Execute iniciar.bat (requer Python 3 com Tkinter no Windows).
+4. Clique em Settings e selecione seu adaptador Wi-Fi.
+5. No campo Nome real da rede (SSID), digite o nome EXATO ou escolha uma rede
+   detectada. Clique em Adicionar / atualizar. Repita para a segunda rede.
+   Os nomes são os SSIDs reais; não são apelidos. Maiúsculas e espaços contam.
+6. Escolha um dos modos e clique em Salvar. Depois carregue a lista e Iniciar.
+
+MODOS
+Desligado: não altera sua conexão Wi-Fi.
+A cada X segundos: alterna na ordem da lista enquanto a consulta estiver ativa.
+O intervalo começa na confirmação da rede, inclusive a rede inicial. O tempo
+que o Windows leva para conectar não faz parte do próximo intervalo.
+Se a verificação não iniciar em 2 segundos: o prazo começa quando o programa
+identifica o formulário novo carregado. Se o início automático não conseguir
+iniciar a verificação nesse prazo, fecha o navegador dedicado, troca de rede
+e abre novamente o formulário para o MESMO CPF pendente.
+Quando a verificação inicia, o desafio continua manual e esse prazo deixa de
+contar. Não exige resolver o desafio em 2 segundos.
+Os modos são exclusivos: escolha intervalo OU falta de início da verificação.
+
+TROCA E RETOMADA
+No início, mantém a rede atual se ela estiver na lista. Caso contrário, conecta
+à primeira rede cadastrada. Cada troca segue a ordem da lista e volta à primeira.
+O programa salva resultados, fecha o Edge/Chrome dedicado, solicita a conexão
+pela API Wi-Fi do Windows e aguarda confirmação do perfil (até 25 segundos).
+Só então reabre o navegador e retoma o CPF pendente. CPFs concluídos continuam
+salvos. Um CAPTCHA pendente poderá precisar ser resolvido novamente.
+Se a rede estiver indisponível ou o Windows recusar conexão, para com erro em
+vez de continuar afirmando que a troca ocorreu.
+Parar e salvar cancela a espera e as próximas trocas. Uma conexão já solicitada
+ao Windows pode ainda terminar. Fechar o programa também cancela a retomada.
+Alterações de Settings valem no próximo Iniciar; pare e inicie para aplicá-las.
+
+NOMES, PERFIS E SENHAS
+O SSID real é associado automaticamente ao perfil salvo correspondente, mesmo
+quando o nome interno do perfil do Windows é diferente do SSID.
+Não há campo de senha Wi-Fi no app. As credenciais são geridas pelo Windows.
+Redes ainda não salvas precisam ser conectadas primeiro pelo próprio Windows.
+Use Atualizar redes após salvar novas redes no Windows. Redes ocultas salvas
+podem ser digitadas pelo SSID real mesmo se não estiverem na lista detectada.
+A lista detectada usa a última varredura disponibilizada pelo Windows.
+Se houver acesso negado, confira Wi-Fi e permissões de localização para apps
+de desktop no Windows (especialmente nas versões recentes do Windows 11).
+
+IP PÚBLICO E ALCANCE
+Trocar a rede Wi-Fi afeta a conexão do computador e outros aplicativos.
+O rodapé mostra a rede confirmada e consulta novamente o IP público.
+Duas redes do mesmo roteador, ou com a mesma saída para a internet, podem ter
+o mesmo IP público. O programa não garante que trocar o Wi-Fi altere esse IP.
+O serviço de IP usado é api.ipify.org; falhas não são interpretadas como IP novo.
+Configurações ficam em ConsultaCPF_RFB/wifi_settings.json na pasta do usuário,
+sem senhas. Os resultados continuam em ConsultaCPF_RFB/saidas.
+
+EXECUTÁVEL
+iniciar.bat usa os arquivos Python desta pasta. Para EXE atualizado, execute
+gerar_exe.bat e use o novo dist/ConsultaCPF_RFB.exe. Um EXE anterior não muda
+quando você apenas substitui arquivos Python. Não há dependências novas além
+da biblioteca padrão do Python; a integração Wi-Fi usa a API nativa do Windows.
+
+VALIDAÇÃO
+27 testes automatizados locais: ordem e confirmação das redes, rede inicial,
+intervalo após confirmação, falha, cancelamento, prazo de dois segundos,
+espera manual do desafio, validação/salvamento dos SSIDs e configurações,
+preservação de resultados e limite de espera do navegador.
+Janela Tk executada em tela virtual, com adaptador simulado: Settings abre,
+aceita dois SSIDs reais, associa perfis com nomes internos diferentes e salva.
+Controles e rodapé verificados em tamanhos mínimos sem sobreposição.
+Compilação Python e integridade do ZIP verificadas.
+Não executado com adaptador Wi-Fi real, Windows/Edge ou fornecedor do usuário.
+Nenhuma consulta de CPF foi realizada durante os testes.
