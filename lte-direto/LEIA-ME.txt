@@ -1,0 +1,28 @@
+LTE Direto — Android 10 ou superior — sem root
+
+Instalação
+1. Desinstale o Force LTE original: este APK usa o mesmo identificador, mas tem outra assinatura.
+2. Instale LTE-Direto-sem-root.apk.
+3. Abra o app e habilite “LTE Direto — alternar redes” em Acessibilidade.
+4. Volte ao app: ele abre diretamente as informações do telefone.
+5. No painel flutuante, escolha os segundos, marque pelo menos duas redes e toque em Iniciar. O botão passa a Parar.
+
+Se o Android bloquear a Acessibilidade de um app instalado por arquivo: Informações do app > menu de três pontos > Permitir configurações restritas. Essa opção depende da versão e do fabricante.
+
+Uso
+- Arraste o título para mover o painel; use −/+ para recolher/expandir.
+- No modo recolhido, tocar no título “Parar” interrompe o ciclo.
+- O botão × para e fecha o painel; reabra o app para mostrar novamente.
+- Mantenha as informações do telefone abertas e a tela desbloqueada.
+- Parar mantém a última preferência selecionada, sem restaurar a anterior.
+- 3G seleciona WCDMA only/UMTS only. 4G seleciona LTE only. 5G seleciona NR/LTE ou NR only, conforme as opções visíveis na lista.
+- O intervalo é contado entre a confirmação da seleção na interface e a próxima tentativa. Os toques e o modem acrescentam algum tempo.
+- A seleção na interface não comprova a conexão efetiva. A disponibilidade de rede e um IP diferente dependem do aparelho e da operadora.
+
+Implementação
+Reconstrução simplificada a partir do comportamento de abertura identificado no XAPK fornecido. A interface e os componentes de publicidade do app original foram substituídos por código novo. Não é uma versão oficial do Force LTE.
+O serviço usa cliques de Acessibilidade no seletor nativo de rede, sem comandos root. A leitura de telas é restrita aos pacotes Configurações e Telefone. Não há permissão de internet, anúncios ou rastreamento.
+Compatibilidade depende de o fabricante expor a tela RadioInfo e seu seletor pela Acessibilidade. Se o seletor não for reconhecido ou a opção não existir, o ciclo para e informa o motivo.
+
+Verificação
+APK compilado, alinhado e assinatura validada. Onze verificações dos nomes de redes passaram. Não houve teste de execução em aparelho/emulador; a alternância e a obtenção de outro IP precisam ser verificadas no telefone.
