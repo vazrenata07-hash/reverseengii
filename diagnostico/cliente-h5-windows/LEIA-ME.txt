@@ -1,0 +1,24 @@
+﻿DIAGNOSTICO DA CLASSIFICACAO H5 / APP-ANDROID(VEST)
+
+O criterio de sucesso e o site registrar APP-Android(Vest), como no Mint APK
+em Android. Esta ferramenta coleta evidencia; nao modifica a classificacao.
+
+1. Feche todas as janelas do Mint.
+2. Extraia os dois scripts na mesma pasta do EXE Mint V24.
+3. Execute diagnosticar-cliente-h5.bat.
+4. Aguarde a coleta terminar (aproximadamente 25 a 70 segundos apos abrir a aba).
+   Se aparecer o aviso inicial do Mint, conclua apenas esse aviso.
+   Nao faca login nem jogue durante a coleta.
+5. Feche o Mint e envie na conversa o arquivo mint-cliente-h5-DATA-HORA.zip.
+
+O ZIP gerado contem o log, indicadores e arquivos JS externos do lobby.
+Nao grava cookies, cabecalhos, armazenamento ou corpos de requisicoes.
+Nao altera flags, pontes ou os dados de login. Nenhum arquivo e enviado sozinho.
+O codigo JS do site pode conter constantes/URLs do proprio codigo.
+Nao inclui o HTML completo nem fontes completas de scripts inline.
+
+Se houver V23 e V24 na pasta, a ferramenta escolhe V24.
+Tambem funciona com V23 para capturar o erro anterior, em uma pasta separada.
+O EXE e o WebView2 usados sao os ja instalados; nao exige instalar Python/Node.
+Os scripts passaram em verificacao de sintaxe PowerShell. A coleta real no
+Windows/site ainda precisa ser executada no computador onde o problema ocorre.
