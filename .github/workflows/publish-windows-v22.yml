@@ -1,0 +1,31 @@
+name: Entregar Mint Portable V22
+on:
+  push:
+    paths:
+      - 'delivery-windows-v22/**'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar executavel e conferir integridade
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          root = Path('delivery-windows-v22')
+          item = json.loads((root / 'manifest.json').read_text())
+          data = b''.join((root / part).read_bytes() for part in item['parts'])
+          assert hashlib.sha256(data).hexdigest() == item['sha256']
+          Path(item['name']).write_bytes(data)
+          print(item['name'], len(data))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Mint-Browser-Windows-v22-Portable-danill0.exe
+          git rm -r delivery-windows-v22
+          git commit -m "Publicar Mint Portable V22: largura nativa e user agent Android Browser"
+          git push origin HEAD:main
