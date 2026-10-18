@@ -21,3 +21,7 @@ Compilação Release Windows x64 concluída. Passaram sete verificações focada
 Não houve execução no Windows nem acesso funcional ao site neste ambiente. Sem a mensagem original do Console, a chamada exata que causou o travamento permanece não confirmada; a V24 remove a interferência isolada na comparação V22/V23.
 
 SHA-256 do EXE: `40ac209ebdac67df708cee5efddac076b5d9f8df21c082740cbf20c4136771c4`.
+
+## Diagnóstico opcional
+
+Se continuar na tela de abertura, extraia `Mint-Diagnostico-Windows-V24.zip` na pasta do EXE, feche o Mint e execute `diagnosticar-mint.bat`. O script recarrega a aba depois de ativar a captura de exceções JS e falhas de rede, grava `mint-diagnostico-*.txt` localmente e permite observar os indicadores de aplicativo. Envie esse TXT para analisar o erro. O diagnóstico não foi executado no Windows neste ambiente.
