@@ -1,4 +1,4 @@
-﻿DIAGNOSTICO DA CLASSIFICACAO H5 / APP-ANDROID(VEST)
+﻿DIAGNOSTICO DA CLASSIFICACAO H5 / APP-ANDROID(VEST) - V2
 
 O criterio de sucesso e o site registrar APP-Android(Vest), como no Mint APK
 em Android. Esta ferramenta coleta evidencia; nao modifica a classificacao.
@@ -20,5 +20,7 @@ Nao inclui o HTML completo nem fontes completas de scripts inline.
 Se houver V23 e V24 na pasta, a ferramenta escolhe V24.
 Tambem funciona com V23 para capturar o erro anterior, em uma pasta separada.
 O EXE e o WebView2 usados sao os ja instalados; nao exige instalar Python/Node.
-Os scripts passaram em verificacao de sintaxe PowerShell. A coleta real no
-Windows/site ainda precisa ser executada no computador onde o problema ocorre.
+V2 corrige a resposta do comando Runtime.enable. O transporte foi testado com
+Chromium real local: inicializacao, recarga, respostas sucessivas e coleta
+integral de arquivos JS. A execucao no Windows/888 continua pendente.
+No inicio do novo log deve aparecer "Coletor H5 v2".

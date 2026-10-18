@@ -28,8 +28,8 @@ function Send-Cdp([string]$method, $parameters) {
     $payload = @{id=$script:sequence; method=$method; params=$parameters} | ConvertTo-Json -Depth 8 -Compress
     $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
     $segment = New-Object 'System.ArraySegment[byte]' -ArgumentList @(,$bytes)
-    $script:socket.SendAsync($segment, [Net.WebSockets.WebSocketMessageType]::Text, $true, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
-    return $script:sequence
+    [void]$script:socket.SendAsync($segment, [Net.WebSockets.WebSocketMessageType]::Text, $true, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+    return [int]$script:sequence
 }
 function Read-Cdp([int]$waitMs) {
     $until = [DateTime]::UtcNow.AddMilliseconds($waitMs)
@@ -77,7 +77,7 @@ function Process-Event($message) {
     }
 }
 function Command-Cdp([string]$method, $parameters) {
-    $id = Send-Cdp $method $parameters; $until = [DateTime]::UtcNow.AddSeconds(5)
+    [int]$id = Send-Cdp $method $parameters; $until = [DateTime]::UtcNow.AddSeconds(5)
     do {
         $message = Read-Cdp 250
         if ($null -ne $message) {
@@ -125,7 +125,7 @@ try {
     $script:socket = New-Object Net.WebSockets.ClientWebSocket
     $connectTimeout = New-Object Threading.CancellationTokenSource
     $connectTimeout.CancelAfter(5000)
-    try { $script:socket.ConnectAsync($wsUri, $connectTimeout.Token).GetAwaiter().GetResult() } finally { $connectTimeout.Dispose() }
+    try { [void]$script:socket.ConnectAsync($wsUri, $connectTimeout.Token).GetAwaiter().GetResult() } finally { $connectTimeout.Dispose() }
     $null = Command-Cdp 'Runtime.enable' @{}
     $null = Command-Cdp 'Log.enable' @{}
     $null = Command-Cdp 'Network.enable' @{}

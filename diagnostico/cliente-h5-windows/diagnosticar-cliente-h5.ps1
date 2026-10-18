@@ -42,8 +42,10 @@ function Send-Cdp([string]$method, $parameters) {
     $payload = @{id=$script:sequence; method=$method; params=$parameters} | ConvertTo-Json -Depth 8 -Compress
     $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
     $segment = New-Object 'System.ArraySegment[byte]' -ArgumentList @(,$bytes)
-    $script:socket.SendAsync($segment, [Net.WebSockets.WebSocketMessageType]::Text, $true, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
-    return $script:sequence
+    # PowerShell can emit VoidTaskResult when SendAsync completes synchronously.
+    # Suppress it so the command returns only the numeric CDP request id.
+    [void]$script:socket.SendAsync($segment, [Net.WebSockets.WebSocketMessageType]::Text, $true, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+    return [int]$script:sequence
 }
 function Read-Cdp([int]$waitMs) {
     $until = [DateTime]::UtcNow.AddMilliseconds($waitMs)
@@ -93,7 +95,7 @@ function Process-Event($message) {
     }
 }
 function Command-Cdp([string]$method, $parameters, [int]$TimeoutMs=5000) {
-    $id = Send-Cdp $method $parameters; $until = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
+    [int]$id = Send-Cdp $method $parameters; $until = [DateTime]::UtcNow.AddMilliseconds($TimeoutMs)
     do {
         $message = Read-Cdp 250
         if ($null -ne $message) {
@@ -143,7 +145,7 @@ function Collect-SourceContexts {
     Write-Log ('Fontes lidas=' + $reads + '; arquivos JS externos=' + $saved + '; bytes aceitos=' + $total + '; trechos=' + $fragments + '. Ausencia de trecho nao comprova ausencia do mecanismo.')
 }
 try {
-    Write-Log 'Diagnostico local: erros, indicadores, arquivos JS externos carregados e trechos inline. Nada e enviado.'
+    Write-Log 'Coletor H5 v2. Diagnostico local: erros, indicadores, arquivos JS externos carregados e trechos inline. Nada e enviado.'
     Write-Log 'Nao le cookies, cabecalhos, armazenamento ou corpos de requisicoes; nao despeja heap/sessao e nao altera flags ou pontes.'
     Write-Log 'Feche o Mint antes. Nao faca login nem jogue durante a coleta (25 s + ate 45 s de fontes).'
     Write-Log 'O ZIP contem codigo JS do site e pode conter constantes/URLs do proprio codigo. Revise antes de compartilhar. HTML completo e scripts inline completos nao sao salvos.'
@@ -179,7 +181,7 @@ try {
     $script:socket = New-Object Net.WebSockets.ClientWebSocket
     $connectTimeout = New-Object Threading.CancellationTokenSource
     $connectTimeout.CancelAfter(5000)
-    try { $script:socket.ConnectAsync($wsUri, $connectTimeout.Token).GetAwaiter().GetResult() } finally { $connectTimeout.Dispose() }
+    try { [void]$script:socket.ConnectAsync($wsUri, $connectTimeout.Token).GetAwaiter().GetResult() } finally { $connectTimeout.Dispose() }
     $null = Command-Cdp 'Runtime.enable' @{}
     $null = Command-Cdp 'Log.enable' @{}
     $null = Command-Cdp 'Network.enable' @{}
