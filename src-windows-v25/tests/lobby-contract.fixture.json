@@ -1,0 +1,58 @@
+{
+  "exact": {
+    "osEnum": "Ot=(e=>(e[e.IOS_APP=1]=\"IOS_APP\",e[e.ANDROID_APP=2]=\"ANDROID_APP\",e[e.PC_H5=3]=\"PC_H5\",e[e.PC_Windows=4]=\"PC_Windows\",e[e.IOS_H5=5]=\"IOS_H5\",e[e.ANDROID_H5=6]=\"ANDROID_H5\",e))(Ot||{})",
+    "deviceAndClientEnums": "ar=(e=>(e[e.WINDOWS=1]=\"WINDOWS\",e[e.ANDROID=2]=\"ANDROID\",e[e.IOS=3]=\"IOS\",e[e.MAC=4]=\"MAC\",e[e.OTHER=0]=\"OTHER\",e))(ar||{}),rn=(e=>(e[e.NORMAL=1]=\"NORMAL\",e[e.APP=2]=\"APP\",e[e.SPEED=3]=\"SPEED\",e[e.VEST=4]=\"VEST\",e[e.PWA=5]=\"PWA\",e[e.SHORTCUT=6]=\"SHORTCUT\",e[e.QUICK=7]=\"QUICK\",e[e.TELEGRAM=8]=\"TELEGRAM\",e[e.OTHER=0]=\"OTHER\",e))(rn||{})",
+    "appAndVest": "W6=()=>{if(!window.WgPackage&&Pt.WgPackage)try{window.WgPackage=JSON.parse(decodeURIComponent(window.atob(String(Pt.WgPackage))))}catch(e){}return re.wgPackageConfig||!!(window.WgPackage||window.jsBridge&&!ht().browser.isWebSpace||window.PlatNative||window.Android||window.uni)||Pt.isWgPackage===\"true\"||!!Pt.WgPackage},re={get wgPackageConfig(){var e;try{(e=window.jsBridge)!=null&&e.getWGConfigInfo?window.WgPackage=JSON.parse(window.jsBridge.getWGConfigInfo()).WgPackage:Pt.WgPackage&&(window.WgPackage=JSON.parse(decodeURIComponent(window.atob(String(Pt.WgPackage)))))}catch(t){}return window.WgPackage?window.WgPackage:void 0},get speedPackageConfig(){var e,t;try{(e=window.jsBridge)!=null&&e.getWGConfigInfo?window.SpeedPackaeInit=JSON.parse(window.jsBridge.getWGConfigInfo()).SpeedPackaeInit:Pt.SpeedPackaeInit&&(window.SpeedPackaeInit=JSON.parse(decodeURIComponent(window.atob(String(Pt.SpeedPackaeInit)))))}catch(n){}return(t=window.SpeedPackaeInit)!=null&&t.isSpeedPackae?window.SpeedPackaeInit:void 0},get isInBridgeShellApp(){var e;return re.speedPackageConfig||((e=window.jsBridge)==null?void 0:e.getWGConfigInfo)||window.WgPackage},get isWebClip(){return Pt[\"fixed.iswebclip\"]===\"1\"||Pt[\"fixed.iswebclip\"]===\"2\"||!!Pt.webClipData},get package(){var t;const e=W6();return{isApp:e,isVest:e&&!this.speedPackageConfig,isLite:e&&((t=this.speedPackageConfig)==null?void 0:t.isSpeedPackae),isWebClip:this.isWebClip}}}",
+    "osHelpers": "FI=()=>{const e=Xe();return e.isIos&&(e.isMobile||e.isTablet)?Ot.IOS_H5:e.isAndroidPhone||e.isAndroid&&e.isTablet?Ot.ANDROID_H5:Ot.PC_Windows},il=()=>{var e,t;return(e=re==null?void 0:re.package)!=null&&e.isLite?(t=re==null?void 0:re.speedPackageConfig)==null?void 0:t.osType:FI()},WI=()=>{var e,t,n;return(e=re==null?void 0:re.package)!=null&&e.isVest?Xe().isIos?Ot.IOS_APP:Ot.ANDROID_APP:(t=re==null?void 0:re.package)!=null&&t.isLite?(n=re==null?void 0:re.speedPackageConfig)==null?void 0:n.osType:FI()},VI=()=>{var t,n,o;const e=Xe();return(t=re==null?void 0:re.package)!=null&&t.isVest||(n=re==null?void 0:re.package)!=null&&n.isLite||e.isP2a&&e.isAndroid?e.isIos?Ot.IOS_APP:Ot.ANDROID_APP:(o=re==null?void 0:re.package)!=null&&o.isWebClip?Ot.IOS_APP:WI()}",
+    "deviceModelHelper": "$I=()=>{var t;const e=((t=re.wgPackageConfig)==null?void 0:t.deviceModel)||ht().browser.format;return re.package.isVest&&Pt[\"fixed.deviceModel\"]||e}",
+    "deviceAndClientHelpers": "Ug=()=>{const e=ht();return new Map([[e.os.isWindows||e.os.isLinux,ar.WINDOWS],[e.os.isAndroid||e.os.isHarmonyOS,ar.ANDROID],[e.os.isIOS,ar.IOS],[e.os.isMacOS&&!e.device.isMobile&&!e.device.isTablet,ar.MAC]]).get(!0)||ar.OTHER},Gg=()=>{var r,s,i;const e=Xe(),t=(r=re==null?void 0:re.package)==null?void 0:r.isWebClip,n=e.isH5Shortcut&&!e.isP2a,o=e.isP2a&&!e.isH5Shortcut,a=fn.isActivated;return new Map([[n,rn.SHORTCUT],[t,rn.QUICK],[o,rn.PWA],[(s=re==null?void 0:re.package)==null?void 0:s.isLite,rn.SPEED],[(i=re==null?void 0:re.package)==null?void 0:i.isVest,rn.VEST],[a,rn.TELEGRAM]]).get(!0)||rn.NORMAL}",
+    "callbackOptions": "{disabled:()=>{var e;return!((e=window.jsBridge)!=null&&e.postMessage)},sendMessage(e){var t,n;window.jsBridge&&((n=(t=window.jsBridge)==null?void 0:t.postMessage)==null||n.call(t,\"AppEvents\",JSON.stringify(e)))},registerMessage(e){if(window.jsBridge){const t=n=>{e(n)};return window.jsBridge.onWebviewEvents=t,()=>{delete window.jsBridge.onWebviewEvents}}}}",
+    "loginPayload": "()=>{var he;let te=location.origin,le;return ha()?le=ah.AgentPC:le=ah.Sass,{domain:te,clientType:re.package.isLite||re.isWebClip?2:5,jpush_id:\"\",loginId:zn().uuid,deviceHash:zn().hash,os_type:il(),deviceOsType:WI(),deviceModel:$I(),platformType:\"1001\",operationId:0,pkgId:1,...re.package.isLite?{mtpush_id:(he=re==null?void 0:re.speedPackageConfig)==null?void 0:he.pushId}:{},fromClub:le}}"
+  },
+  "provenance": {
+    "capture": "mint-cliente-h5-20261018-172840-880.zip/fontes/01_commonChunk.EZ6HNUYg.js",
+    "sha256": "a4b6a7fb2870cbb6b1f89ebf2661ba7436b4e3a92250973910085749cc18f87f",
+    "fragments": {
+      "osEnum": {
+        "utf16Start": 20866,
+        "utf16End": 21049,
+        "sha256": "72e1c0571ef4a3346890aaa2035bc991fa9208da58a8a739e0ca97f70936aa1d"
+      },
+      "deviceAndClientEnums": {
+        "utf16Start": 21955,
+        "utf16End": 22292,
+        "sha256": "5deec432376c1a391856697d37d786428070c888805c80008021db6605e04aa1"
+      },
+      "appAndVest": {
+        "utf16Start": 831306,
+        "utf16End": 832730,
+        "sha256": "d6820868cdb9e9d902e83dfb3295c9aa1f9e96115ce13e33594c31e1230e82fe"
+      },
+      "osHelpers": {
+        "utf16Start": 170322,
+        "utf16End": 171083,
+        "sha256": "3e9f1a8e8d297255afe5c4eecfe9823757923a36fc96aa63b13f97f2d2438bac"
+      },
+      "deviceModelHelper": {
+        "utf16Start": 172218,
+        "utf16End": 172366,
+        "sha256": "99d76c29174da37bbbd7be31057a110a9d92138a3922b1a28b3fdf53039cd616"
+      },
+      "deviceAndClientHelpers": {
+        "utf16Start": 172881,
+        "utf16End": 173489,
+        "sha256": "d4b85282acba1764ed44a13a57bff2b253fe251d78383bc225651c397e07a2ca"
+      },
+      "callbackOptions": {
+        "utf16Start": 262742,
+        "utf16End": 263100,
+        "sha256": "defaf70b82324c86d897e2b9cad40c4bb7f44a030b290bf5d0649d0422511758"
+      },
+      "loginPayload": {
+        "utf16Start": 817941,
+        "utf16End": 818330,
+        "sha256": "3d63efc544e508868a9c01f9e8ecf7933f1e5d202e92ffbd7ee51f2b94d40187"
+      }
+    }
+  }
+}
