@@ -15,3 +15,11 @@ O coletor lê os scripts já carregados com o Debugger do WebView2 e salva fonte
 O ZIP retornado pelo usuário em 18/10/2026 continha somente um log: a coleta parou em `Runtime.enable`, sem fontes. O `GetResult()` de um `SendAsync()` concluído imediatamente emitia `VoidTaskResult` no pipeline do PowerShell, transformando o identificador retornado em um array. Assim a resposta CDP correta não era reconhecida. A v2 suprime esse resultado e exige um identificador inteiro.
 
 A falha original foi reproduzida em uma conexão CDP com Chromium real local. A versão corrigida passou em inicialização Runtime/Log/Network/Page/Debugger, recarga, dez respostas sucessivas, extração de trechos e transferência integral de duas fontes, incluindo uma de 228 KB. Esse teste usa conteúdo sintético local; ainda é necessário obter o código da 888 no computador do usuário.
+
+## Capturas retornadas e correção da seleção v3
+
+As duas coletas retornadas, incluindo uma sessão logada, registram a mesma implementação real: `LOBBY_UTILS.isAppEnv()` verifica `WgPackage`, `jsBridge`, `PlatNative`, `Android`, `uni` ou parâmetros de URL; `isVestEnv()` é `isAppEnv() && !getSpeedPackConfig()`. A V24 tem somente `__mintAdblockBridge`; `jsBridge` está ausente. Isso confirma a diferença no detector inicial, sem provar a classificação que será enviada ao servidor após corrigir a ponte.
+
+O coletor selecionava até 30 fontes por tamanho crescente. As capturas tinham 58/117 candidatas; os módulos centrais foram excluídos. Faltam `assets/theme-0/commonChunk.EZ6HNUYg.js` e `assets/theme-0/0_EntryLoginRegisterChunk.D7_g9aJ6.js`. A implementação da ponte e os metadados compartilhados são importados deles pelos módulos capturados. O arquivo `register.impl` capturado trata de webpush.
+
+A v3 prioriza commonChunk e EntryLoginRegisterChunk, deduplica contextos por host/caminho e aumenta o limite por fonte para 8 MiB. O teste de regressão cria mais de 50 auxiliares, contextos duplicados e fontes grandes para verificar que o núcleo é coletado primeiro e que os limites e a exclusão de documentos completos continuam válidos. O navegador e seus identificadores não foram alterados nesta etapa.

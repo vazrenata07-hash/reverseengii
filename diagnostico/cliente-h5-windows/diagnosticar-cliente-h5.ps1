@@ -33,8 +33,18 @@ function Source-Info($p) {
         $own = $u.Host -match '(^|\.)888pg\.cc$'; $root = $u.AbsolutePath -eq '/'
         if ($root -and (-not $own -or $u.Query -or $u.Fragment)) { return $null }
         if (-not $root -and $u.AbsolutePath -notmatch '(?i)\.m?js$') { return $null }
-        $priority = if ($root) {0} elseif ($u.AbsolutePath -match '(?i)vendor|polyfill') {3} elseif ($own) {1} else {2}
-        return @{id=$p.scriptId; url=($u.Host+$u.AbsolutePath); priority=$priority; length=$p.length; line=$p.startLine; external=(-not $root); name=[IO.Path]::GetFileName($u.AbsolutePath)}
+        $name = [IO.Path]::GetFileName($u.AbsolutePath)
+        # Read the chunks containing the environment and login contracts first.
+        # Small helpers and inline documents must not fill the 30-source limit.
+        $priority = if ($own -and $name -match '(?i)^commonChunk(?:\.[^.]+)?\.m?js$') {0}
+            elseif ($own -and $name -match '(?i)^0_EntryLoginRegisterChunk(?:\.[^.]+)?\.m?js$') {1}
+            elseif ($u.AbsolutePath -match '(?i)vendor|polyfill') {6}
+            elseif ($own -and $name -match '(?i)^(?:[0-9]+_)?(?:MineChunk|index|main|lobby)(?:[._-]|$)') {2}
+            elseif ($own -and -not $root) {3}
+            elseif ($root) {4}
+            else {5}
+        $order = 0L; [void][long]::TryParse([string]$p.scriptId, [ref]$order)
+        return @{id=$p.scriptId; order=$order; url=($u.Host+$u.AbsolutePath); priority=$priority; length=$p.length; line=$p.startLine; external=(-not $root); name=$name}
     } catch { return $null }
 }
 function Send-Cdp([string]$method, $parameters) {
@@ -59,7 +69,7 @@ function Read-Cdp([int]$waitMs) {
         $part = $script:receiveTask.GetAwaiter().GetResult(); $script:receiveTask = $null
         if ($part.MessageType -eq [Net.WebSockets.WebSocketMessageType]::Close) { throw 'O Mint encerrou a conexao de diagnostico.' }
         $script:partial.Write($script:buffer, 0, $part.Count)
-        if ($script:partial.Length -gt 12582912) { throw 'Resposta de diagnostico grande demais; coleta interrompida.' }
+        if ($script:partial.Length -gt 33554432) { throw 'Resposta de diagnostico grande demais; coleta interrompida.' }
         if ($part.EndOfMessage) {
             $json = [Text.Encoding]::UTF8.GetString($script:partial.ToArray()); $script:partial.SetLength(0)
             return ($json | ConvertFrom-Json)
@@ -110,8 +120,15 @@ function Command-Cdp([string]$method, $parameters, [int]$TimeoutMs=5000) {
 }
 function Collect-SourceContexts {
     $epoch = $script:epoch; $deadline = [DateTime]::UtcNow.AddSeconds(45); $total = 0; $reads = 0; $fragments = 0; $saved = 0
-    $candidates = @($script:scripts.Values | Where-Object { $_.length -le 3145728 } | Sort-Object { $_.priority }, { $_.length } | Select-Object -First 30)
-    Write-Log ('FONTES: candidatos=' + $script:scripts.Count + '; selecionados=' + $candidates.Count + '. Limites: 30 fontes, 3 MiB/fonte, 20 MiB total, 45 s, 80 trechos. Documentos inline: somente trechos.')
+    $unique = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+    foreach ($item in $script:scripts.Values) {
+        # The same external chunk can appear in several contexts. Read its latest
+        # script id once; inline documents remain distinct and are never saved whole.
+        $key = if ($item.external) { 'external:'+$item.url } else { 'inline:'+$item.id }
+        if (-not $unique.ContainsKey($key) -or $item.order -gt $unique[$key].order) { $unique[$key] = $item }
+    }
+    $candidates = @($unique.Values | Where-Object { $_.length -le 8388608 } | Sort-Object { $_.priority }, { $_.url }, { $_.order } | Select-Object -First 30)
+    Write-Log ('FONTES: candidatos=' + $script:scripts.Count + '; unicos=' + $unique.Count + '; selecionados=' + $candidates.Count + '. Limites: 30 fontes, 8 MiB/fonte, 20 MiB total, 45 s, 80 trechos. Documentos inline: somente trechos.')
     foreach ($item in $candidates) {
         $remaining = [int]($deadline-[DateTime]::UtcNow).TotalMilliseconds
         if ($remaining -le 0 -or $total -ge 20971520) { break }
@@ -120,7 +137,7 @@ function Collect-SourceContexts {
         catch { Write-Log ('FONTE INDISPONIVEL: ' + $item.url); continue }
         if ($script:epoch -ne $epoch) { Write-Log 'O contexto mudou; fonte descartada.'; break }
         $source = [string]$answer.scriptSource; $bytes = [Text.Encoding]::UTF8.GetByteCount($source)
-        if ($bytes -gt 3145728 -or ($total+$bytes) -gt 20971520) { continue }; $total += $bytes
+        if ($bytes -gt 8388608 -or ($total+$bytes) -gt 20971520) { continue }; $total += $bytes
         if ($item.external) {
             $name = [regex]::Replace($item.name,'[^A-Za-z0-9._-]','_'); if ($name.Length -gt 80) { $name=$name.Substring(0,80) }
             $name = $reads.ToString('00')+'_'+$name; [IO.File]::WriteAllText((Join-Path $sourceDir $name),$source,(New-Object Text.UTF8Encoding($false)))
@@ -129,7 +146,7 @@ function Collect-SourceContexts {
         $primary = '\bisAppEnv\b|\bisVestEnv\b|\bSpeedPackage\b|\bjsBridge\b|APP-Android|\bVest\b|Mint Browser|\bmiui\b|\bmint\.(?:getVersionName|getVersionCode)'
         $hits = @([regex]::Matches($source,$primary))
         if ($hits.Count -gt 0) { $hits += @([regex]::Matches($source,'\bclientType\b|\bappType\b')) }
-        elseif ($item.priority -le 1 -and $item.url -match '(?i)(index|main|lobby|commonchunk)') { $hits = @([regex]::Matches($source,'\bclientType\b|\bappType\b')) }
+        elseif ($item.priority -le 2 -and $item.url -match '(?i)(index|main|lobby|commonchunk)') { $hits = @([regex]::Matches($source,'\bclientType\b|\bappType\b')) }
         $lastEnd = -1; $perScript = 0
         foreach ($hit in $hits) {
             if ($perScript -ge 6 -or $fragments -ge 80) { break }
@@ -145,7 +162,7 @@ function Collect-SourceContexts {
     Write-Log ('Fontes lidas=' + $reads + '; arquivos JS externos=' + $saved + '; bytes aceitos=' + $total + '; trechos=' + $fragments + '. Ausencia de trecho nao comprova ausencia do mecanismo.')
 }
 try {
-    Write-Log 'Coletor H5 v2. Diagnostico local: erros, indicadores, arquivos JS externos carregados e trechos inline. Nada e enviado.'
+    Write-Log 'Coletor H5 v3. Diagnostico local: erros, indicadores, arquivos JS externos carregados e trechos inline. Nada e enviado.'
     Write-Log 'Nao le cookies, cabecalhos, armazenamento ou corpos de requisicoes; nao despeja heap/sessao e nao altera flags ou pontes.'
     Write-Log 'Feche o Mint antes. Nao faca login nem jogue durante a coleta (25 s + ate 45 s de fontes).'
     Write-Log 'O ZIP contem codigo JS do site e pode conter constantes/URLs do proprio codigo. Revise antes de compartilhar. HTML completo e scripts inline completos nao sao salvos.'
