@@ -1,0 +1,60 @@
+{
+  "java_source_sha256": {
+    "Bootstrap.java": "2e855dac9faac2e595884fed26704893938542d97609e89e6665a409f5cfb9e8",
+    "DataWiper.java": "cd583fe0779aa2d2b96a7f70f4d4daa3bfd7866aacab7c2540006b7221877044",
+    "PageScripts.java": "5e1d770c1026744734c786ad56de9dc676e42b8067d833277691aa1c820a303d",
+    "ResetActivity.java": "a681e46791f9cc7f1ca5cb830dfe1edfd62838093cf6f58d0fd29f2e5d455cf0",
+    "WagerStore.java": "6ee2d15758d8040c2881014a4a75c43fc4295d82ae976df0d18a0607278d9d03"
+  },
+  "class_files": [
+    "com/mint/rebuilt/Bootstrap$1.class",
+    "com/mint/rebuilt/Bootstrap$2.class",
+    "com/mint/rebuilt/Bootstrap$3.class",
+    "com/mint/rebuilt/Bootstrap.class",
+    "com/mint/rebuilt/DataWiper.class",
+    "com/mint/rebuilt/PageScripts.class",
+    "com/mint/rebuilt/ResetActivity$1.class",
+    "com/mint/rebuilt/ResetActivity$2$1.class",
+    "com/mint/rebuilt/ResetActivity$2$2.class",
+    "com/mint/rebuilt/ResetActivity$2.class",
+    "com/mint/rebuilt/ResetActivity$3.class",
+    "com/mint/rebuilt/ResetActivity.class",
+    "com/mint/rebuilt/WagerStore$Database.class",
+    "com/mint/rebuilt/WagerStore.class"
+  ],
+  "replacement_dex_sha256": "0c52ab6477b10de8820c42d16ecf6d69dcaba1d8cd5942f8b7fc590800c4ad42",
+  "compiler": "Eclipse ECJ 3.40.0, source/target 8",
+  "dex_compiler": "D8 from Google build-tools 35.0.0, min API 19",
+  "android_compile_api": 28,
+  "output": "Mint-Browser-v21-Otimizado-danill0.apk",
+  "apk_sha256": "636f8d9365d1bdcf81e0bfdcaa1cb1f5b19b36fd5d08f0b08cbef21e2d2fd867",
+  "base_apk_sha256": "272377f49283e6a80050b8553a24b768b489c265276d3454cb76dee71d24a4e0",
+  "changed_payloads": [
+    "assets/mint-rebuilt.js",
+    "classes3.dex"
+  ],
+  "javascript_sha256": "d362623d0638aef8b87d920e61aecf7ce77017b68980d9e5defc1be2c6ef09a0",
+  "replacement_dex_classes": [
+    "Lcom/mint/rebuilt/Bootstrap$1;",
+    "Lcom/mint/rebuilt/Bootstrap$2;",
+    "Lcom/mint/rebuilt/Bootstrap$3;",
+    "Lcom/mint/rebuilt/Bootstrap;",
+    "Lcom/mint/rebuilt/DataWiper;",
+    "Lcom/mint/rebuilt/PageScripts;",
+    "Lcom/mint/rebuilt/ResetActivity$1;",
+    "Lcom/mint/rebuilt/ResetActivity$2$1;",
+    "Lcom/mint/rebuilt/ResetActivity$2$2;",
+    "Lcom/mint/rebuilt/ResetActivity$2;",
+    "Lcom/mint/rebuilt/ResetActivity$3;",
+    "Lcom/mint/rebuilt/ResetActivity;",
+    "Lcom/mint/rebuilt/WagerStore$Database;",
+    "Lcom/mint/rebuilt/WagerStore;"
+  ],
+  "preserved_manifest_sha256": "8250a131791d6fab77695e91b47ad28455ebf7b81a4b9966f1990c53f3e49fd6",
+  "preserved_primary_dex_sha256": "18b39105a50866e460ed30034cf60c22eed51d51ca0b55c9c2e38f7953a8edbd",
+  "preserved_secondary_dex_sha256": "52f6fe7d253cb8ddaf0d18b449721e7692c8eb97c9096ef5dad144fab7343908",
+  "new_signer_certificate_sha256": "e2558921f2d0bfd78dda75b8a8ba2fc67dc7f87e052fe8e3adadfb77e97da5db",
+  "new_certificate_requires_reinstallation": true,
+  "runtime_tests_executed": false,
+  "benchmarks_executed": false
+}
