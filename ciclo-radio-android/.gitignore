@@ -1,0 +1,33 @@
+# Saídas de compilação e ferramentas locais
+/build/
+/toolchain/
+/sdk/
+/android-sdk/
+/.android/
+/.gradle/
+/.idea/
+/.local-signing/
+/local.properties
+*.iml
+
+# Chaves e credenciais
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+.env
+.env.*
+
+# Arquivos temporários e dados pessoais
+/attachments/
+/downloads/
+/work/
+/temp/
+*.csv
+*.mp4
+*.mov
+*.log
+*.tmp
+.DS_Store

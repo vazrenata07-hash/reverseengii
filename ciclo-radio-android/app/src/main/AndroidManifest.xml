@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="br.local.cicloderadio" android:versionCode="1" android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <queries>
+        <package android:name="com.android.settings" />
+        <package android:name="com.android.phone" />
+    </queries>
+    <application android:label="Ciclo de rádio" android:theme="@android:style/Theme.Material.NoActionBar" android:icon="@drawable/ic_radio" android:allowBackup="false" android:supportsRtl="true" android:usesCleartextTraffic="false">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".StopActivity" android:exported="false" android:theme="@android:style/Theme.NoDisplay" />
+        <service android:name=".RadioAccessibilityService" android:label="Ciclo de rádio" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/radio_accessibility" />
+        </service>
+    </application>
+</manifest>

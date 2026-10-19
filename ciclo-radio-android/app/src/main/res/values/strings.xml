@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">Permite localizar e acionar somente a chave Potência de rádio móvel nas Configurações e no aplicativo Telefone. O ciclo é iniciado por você. Pode interromper dados, chamadas e SMS dos dois chips. Precisa de tela ligada e desbloqueada. O aplicativo não tem acesso à internet e não transmite o conteúdo da tela.</string>
+    <string name="accessibility_summary">Automatiza a chave Potência de rádio móvel com intervalos definidos por você.</string>
+</resources>
