@@ -2,7 +2,7 @@
 
 Aplicativo Android que usa acessibilidade para desligar e religar a chave **Potência de rádio móvel** na tela de informações do telefone, em intervalos escolhidos pelo usuário.
 
-O aplicativo funciona localmente, sem conta, anúncios ou permissão de internet. Não exige root. Android mínimo: **8.0 (API 26)**. Compilado com API 35.
+Versão **1.1**. O aplicativo funciona sem conta ou anúncios e consulta o ipify por HTTPS, exclusivamente pela rede móvel, para confirmar o IP público de saída. Não exige root. Android mínimo: **8.0 (API 26)**. Compilado com API 35.
 
 ## Instalação e uso
 
@@ -15,12 +15,14 @@ O aplicativo funciona localmente, sem conta, anúncios ou permissão de internet
 
 ## Comportamento e limites
 
-- O primeiro ciclo aguarda o intervalo escolhido. O teste executa um ciclo imediatamente. A pausa começa quando a interface confirma a chave desligada.
+- O intervalo só começa após a rede móvel estar validada e uma consulta HTTPS confirmar o IP público de saída. A reconexão não consome o intervalo: com 10 segundos configurados, são 10 segundos completos depois dessa confirmação. Isso vale também no início da rotina.
+- Se a rede móvel cair durante a contagem, o app aguarda a reconexão, confirma novamente o IP público e reinicia o intervalo completo. Wi-Fi não confirma a conexão móvel.
+- O teste executa um ciclo imediatamente. A pausa desligado começa quando a interface confirma a chave desligada.
 - Desligar e religar essa chave é uma função do aparelho e não costuma causar dano físico. Interrompe temporariamente dados móveis, hotspot, chamadas e SMS; ciclos frequentes podem aumentar o consumo de bateria. Em alguns aparelhos, a chave afeta os dois chips.
-- A reconexão pode demorar mais que a pausa configurada. A operadora pode fornecer o mesmo IP novamente; não há garantia de troca de IP.
+- A reconexão pode demorar mais que a pausa configurada. O app mostra “Aguardando conexão e IP público” nesse período e não dispara outro ciclo antes da confirmação. A operadora pode fornecer o mesmo IP novamente: a confirmação verifica que há internet móvel com IP público de saída, sem exigir que ele tenha mudado. Se o ipify estiver indisponível, a contagem aguarda uma consulta bem-sucedida.
 - O serviço procura a chave de rádio pelos identificadores conhecidos ou pelos rótulos exatos em português e inglês. Telas de outros fabricantes podem exigir adaptação. O app não altera o tipo de rede, DSDS ou provisionamento.
 - Se não localizar a chave ou confirmar seu estado, o app informa a situação e pode pedir religamento manual. Se o Android encerrar o processo enquanto o rádio estiver desligado, pode ser necessário reabrir o app ou religar a chave manualmente.
-- A compilação, a assinatura, as permissões e a integridade do APK foram verificadas. **O funcionamento ainda precisa ser testado no aparelho; não houve teste em dispositivo ou emulador.**
+- O APK foi compilado. Não foram executados testes em aparelho ou emulador nesta atualização, conforme solicitado.
 
 ## Compilar
 
@@ -41,5 +43,7 @@ Para conferir o APK distribuído, compare seu SHA-256 com `SHA256SUMS`:
 ```bash
 sha256sum -c SHA256SUMS
 ```
+
+A consulta ao ipify transmite apenas a requisição necessária para identificar o IP de saída; não envia o conteúdo da tela, números de telefone ou dados de consultas. O último IP confirmado fica nas preferências privadas do app.
 
 Código-fonte sob licença MIT. O aplicativo não tem vínculo com fabricantes, operadoras ou órgãos públicos.

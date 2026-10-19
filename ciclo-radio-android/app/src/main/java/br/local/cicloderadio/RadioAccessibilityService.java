@@ -57,6 +57,8 @@ public final class RadioAccessibilityService extends AccessibilityService
     private long observedOnAt;
     private boolean openedSettings;
     private boolean exitRestoreAttempted;
+    private CellularConnectionGate connectionGate;
+    private boolean connectionCheckActive;
     private String finishReason = "";
     private final Runnable tick = new Runnable() {
         @Override public void run() {
@@ -99,12 +101,20 @@ public final class RadioAccessibilityService extends AccessibilityService
         info.notificationTimeout = 100L;
         setServiceInfo(info);
         connected = true;
+        if (connectionGate != null) connectionGate.close();
+        connectionGate = new CellularConnectionGate(this, handler, () -> queueTick(0L));
+        connectionGate.start();
+        connectionCheckActive = false;
         exitRestoreAttempted = false;
         stage = prefs.getBoolean("pending_restore", false) ? RESTORE : IDLE;
         if (stage == RESTORE) {
             finishReason = "Rádio religado após retomada do serviço.";
             setPhase("restore");
             setStatus("Religamento pendente. Mantenha a tela ligada e desbloqueada.");
+        } else if (prefs.getBoolean("enabled", false)) {
+            // elapsedRealtime and an earlier IP result cannot be reused across a restart.
+            prefs.edit().putBoolean("awaiting_network", true).putLong("next_run", 0L)
+                    .putString("phase", "waiting_network").apply();
         }
         queueTick(0L);
     }
@@ -123,7 +133,8 @@ public final class RadioAccessibilityService extends AccessibilityService
     @Override public void onSharedPreferenceChanged(SharedPreferences p, String key) {
         if ("enabled".equals(key) || "request_now".equals(key)
                 || "next_run".equals(key) || "interval_ms".equals(key)
-                || "off_ms".equals(key) || "phase".equals(key)) queueTick(0L);
+                || "off_ms".equals(key) || "phase".equals(key)
+                || "awaiting_network".equals(key)) queueTick(0L);
     }
 
     private void queueTick(long delay) {
@@ -168,20 +179,42 @@ public final class RadioAccessibilityService extends AccessibilityService
         stage = IDLE;
         screenBlockedAt = 0L;
         if ("stop_requested".equals(prefs.getString("phase", "idle"))) {
+            cancelConnectionCheck();
+            prefs.edit().putBoolean("awaiting_network", false).putLong("next_run", 0L).apply();
             setPhase("idle");
             targetSearchDeadline = 0L;
             setStatus("Rotina parada.");
             return;
         }
         if (!enabled && !requested) {
+            cancelConnectionCheck();
             targetSearchDeadline = 0L;
             return;
         }
         long next = prefs.getLong("next_run", 0L);
-        if (enabled && next == 0L && !requested) {
-            prefs.edit().putLong("next_run", now + interval()).apply();
-            setStatus("Aguardando o próximo ciclo.");
-            return;
+        if (enabled && !requested) {
+            if (prefs.getBoolean("awaiting_network", true) || next == 0L
+                    || !connectionCheckActive || !connectionGate.isReady()) {
+                targetSearchDeadline = 0L;
+                if (!prefs.getBoolean("awaiting_network", true) || next != 0L) {
+                    prefs.edit().putBoolean("awaiting_network", true).putLong("next_run", 0L)
+                            .putString("phase", "waiting_network").apply();
+                }
+                if (!connectionCheckActive) {
+                    connectionCheckActive = true;
+                    connectionGate.begin();
+                }
+                String confirmedIp = connectionGate.isReady() ? connectionGate.getPublicIp() : "";
+                if (confirmedIp.length() > 0) {
+                    // Only a completed HTTPS request on this cellular network starts the full interval.
+                    prefs.edit().putBoolean("awaiting_network", false)
+                            .putLong("next_run", SystemClock.elapsedRealtime() + interval())
+                            .putString("public_ip", confirmedIp)
+                            .putString("phase", "idle").apply();
+                    setStatus("Internet móvel e IP público confirmados. Intervalo iniciado.");
+                } else setStatus(connectionGate.getStatus());
+                return;
+            }
         }
         if (!requested && now < next) {
             targetSearchDeadline = 0L;
@@ -258,10 +291,11 @@ public final class RadioAccessibilityService extends AccessibilityService
         // preferences write on the main thread.
         if (!prefs.edit().putBoolean("pending_restore", true)
                 .putString("phase", "wait_off").putBoolean("request_now", false)
-                .putLong("next_run", enabled ? now + interval() : 0L).commit()) {
+                .putBoolean("awaiting_network", false).putLong("next_run", 0L).commit()) {
             setStatus("Não foi possível salvar o estado. Rádio mantido ligado.");
             return;
         }
+        cancelConnectionCheck();
         stage = WAIT_OFF;
         offIssuedAt = now;
         observedOnAt = 0L;
@@ -378,10 +412,12 @@ public final class RadioAccessibilityService extends AccessibilityService
     private void finishRestore() {
         boolean running = prefs.getBoolean("enabled", false);
         String message = finishReason.length() > 0 ? finishReason
-                : (running ? "Rádio ligado. Aguardando o próximo ciclo."
+                : (running ? "Rádio ligado. Aguardando internet móvel e IP público."
                 : "Rádio ligado. Rotina parada.");
         if (!prefs.edit().putBoolean("pending_restore", false)
-                .putString("phase", "idle").putBoolean("request_now", false).commit()) {
+                .putBoolean("awaiting_network", running).putLong("next_run", 0L)
+                .putString("phase", running ? "waiting_network" : "idle")
+                .putBoolean("request_now", false).commit()) {
             stopForRecovery("Rádio ligado, mas não foi possível salvar a confirmação. Rotina parada.");
             return;
         }
@@ -390,6 +426,11 @@ public final class RadioAccessibilityService extends AccessibilityService
         recoverySearchDeadline = 0L;
         observedOnAt = 0L;
         finishReason = "";
+        cancelConnectionCheck();
+        if (running) {
+            connectionCheckActive = true;
+            connectionGate.begin();
+        }
         setStatus(message);
         returnToAppIfAppropriate();
     }
@@ -398,14 +439,24 @@ public final class RadioAccessibilityService extends AccessibilityService
         stage = MANUAL_RESTORE;
         finishReason = "Rádio ligado. Rotina parada.";
         prefs.edit().putBoolean("enabled", false).putBoolean("request_now", false)
+                .putBoolean("awaiting_network", false).putLong("next_run", 0L)
                 .putString("phase", "manual_restore").apply();
+        cancelConnectionCheck();
         setStatus(message);
     }
 
     private void consumeRequestAndSchedule(long now) {
-        prefs.edit().putBoolean("request_now", false).putString("phase", "idle")
-                .putLong("next_run", prefs.getBoolean("enabled", false)
-                        ? now + interval() : 0L).apply();
+        boolean running = prefs.getBoolean("enabled", false);
+        cancelConnectionCheck();
+        prefs.edit().putBoolean("request_now", false)
+                .putBoolean("awaiting_network", running)
+                .putString("phase", running ? "waiting_network" : "idle")
+                .putLong("next_run", 0L).apply();
+    }
+
+    private void cancelConnectionCheck() {
+        if (connectionGate != null && connectionCheckActive) connectionGate.cancel();
+        connectionCheckActive = false;
     }
 
     private long interval() {
@@ -566,6 +617,8 @@ public final class RadioAccessibilityService extends AccessibilityService
 
     @Override public boolean onUnbind(Intent intent) {
         bestEffortRestoreOnExit();
+        if (connectionGate != null) connectionGate.close();
+        connectionCheckActive = false;
         connected = false;
         handler.removeCallbacks(tick);
         tickQueued = false;
@@ -574,6 +627,8 @@ public final class RadioAccessibilityService extends AccessibilityService
 
     @Override public void onDestroy() {
         bestEffortRestoreOnExit();
+        if (connectionGate != null) connectionGate.close();
+        connectionCheckActive = false;
         connected = false;
         handler.removeCallbacks(tick);
         tickQueued = false;

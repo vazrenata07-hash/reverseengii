@@ -40,7 +40,7 @@ public final class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private EditText interval, pause;
     private Spinner unit;
-    private TextView status, countdown, permissions;
+    private TextView status, countdown, permissions, publicIp;
     private Button start;
     private SharedPreferences prefs;
     private final Runnable refresh = new Runnable() {
@@ -132,7 +132,7 @@ public final class MainActivity extends Activity {
         add(controls, text("Pausa com o rádio desligado (segundos)", 15, MUTED));
         pause = number(Long.toString(prefs.getLong("off_ms", 2000) / 1000), "2");
         add(controls, pause); gap(controls, 6);
-        add(controls, text("A pausa começa quando o desligamento é confirmado. O primeiro ciclo aguarda o intervalo escolhido.", 13, MUTED));
+        add(controls, text("O intervalo só começa depois que a internet móvel volta e o IP público é confirmado. O tempo de reconexão não é descontado.", 13, MUTED));
         gap(body, 18);
         permissions = text("", 14, MUTED); add(body, permissions); gap(body, 12);
         add(body, button("1. Permitir verificar chamadas", false, v -> phonePermission()));
@@ -150,13 +150,15 @@ public final class MainActivity extends Activity {
         gap(body, 9);
         add(body, button("Parar e religar", false, v -> {
             prefs.edit().putBoolean("enabled", false).putBoolean("request_now", false)
+                    .putBoolean("awaiting_network", false).putLong("next_run", 0L)
                     .putString("phase", "stop_requested").commit();
             if (!prefs.getBoolean("pending_restore", false)) prefs.edit().putString("status", "Parado.").apply();
             RadioSupport.updateNotification(this); update();
         }));
         gap(body, 22);
         countdown = text("", 20, ACCENT); add(body, countdown); gap(body, 6);
-        status = text("", 15, TEXT); add(body, status); gap(body, 22);
+        status = text("", 15, TEXT); add(body, status); gap(body, 6);
+        publicIp = text("", 14, MUTED); add(body, publicIp); gap(body, 22);
         add(body, text("Como usar", 17, TEXT)); gap(body, 6);
         add(body, text("Deixe este app aberto, com a tela ligada e desbloqueada. Ele abre a tela do rádio em cada ciclo e retorna quando termina. Se a tela bloquear, o início do ciclo é adiado.", 14, MUTED));
         gap(body, 12);
@@ -166,7 +168,7 @@ public final class MainActivity extends Activity {
         gap(body, 12);
         add(body, text("Android 13 ou posterior: se a acessibilidade aparecer como restrita, abra Informações do app → menu ⋮ → Permitir configurações restritas. A compatibilidade com a tela do fabricante precisa ser testada no aparelho.", 13, MUTED));
         gap(body, 18);
-        add(body, text("Sem anúncios, conta ou acesso à internet. A chave é acionada por acessibilidade, sem alterar tipo de rede, DSDS ou provisionamento.", 12, MUTED));
+        add(body, text("Sem anúncios ou conta. Usa uma consulta HTTPS ao ipify pela rede móvel para confirmar o IP público de saída. A chave é acionada por acessibilidade, sem alterar tipo de rede, DSDS ou provisionamento.", 12, MUTED));
         setContentView(scroll);
     }
 
@@ -190,9 +192,10 @@ public final class MainActivity extends Activity {
         }
         prefs.edit().putLong("interval_ms", ms).putLong("off_ms", off)
                 .putBoolean("enabled", !once).putBoolean("request_now", once)
-                .putString("phase", "idle")
-                .putLong("next_run", SystemClock.elapsedRealtime() + ms)
-                .putString("status", once ? "Teste solicitado." : "Aguardando próximo ciclo.").commit();
+                .putBoolean("awaiting_network", !once)
+                .putString("phase", once ? "idle" : "waiting_network")
+                .putLong("next_run", 0L)
+                .putString("status", once ? "Teste solicitado." : "Aguardando internet móvel e IP público.").commit();
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 11);
         RadioSupport.updateNotification(this); update();
@@ -233,8 +236,11 @@ public final class MainActivity extends Activity {
         permissions.setText("Chamadas: " + (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED ? "permitido" : "pendente")
                 + "  ·  Acessibilidade: " + (accessibilityEnabled() ? "ativa" : "pendente"));
         status.setText(prefs.getString("status", "Pronto para configurar."));
+        String lastIp = prefs.getString("public_ip", "");
+        publicIp.setText(lastIp.length() == 0 ? "" : "Último IP público confirmado: " + lastIp);
         if (restoring) countdown.setText("Religamento pendente");
         else if (once) countdown.setText("Preparando teste…");
+        else if (enabled && prefs.getBoolean("awaiting_network", true)) countdown.setText("Aguardando conexão e IP público…");
         else if (enabled) {
             long secs = Math.max(0, (prefs.getLong("next_run", 0) - SystemClock.elapsedRealtime() + 999) / 1000);
             countdown.setText(secs > 0 ? "Próximo ciclo em " + (secs / 60) + ":" + String.format(java.util.Locale.ROOT, "%02d", secs % 60) : "Aguardando tela e chamada livres…");
