@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.system.Os;
 import android.system.OsConstants;
 
@@ -16,8 +17,11 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,13 +30,17 @@ import javax.net.ssl.HttpsURLConnection;
 
 /** Observes cellular connectivity and confirms a public IP over that exact network. */
 public final class CellularConnectionGate {
-    private static final long RETRY_MS = 2_000L;
+    private static final long RETRY_MS = 1_000L;
+    private static final int MAX_IN_FLIGHT = 2;
     private static final String WAITING = "Aguardando internet móvel...";
     private final ConnectivityManager connectivity;
     private final Handler handler;
     private final Runnable onChanged;
     private final AtomicLong epoch = new AtomicLong();
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+    // No task queue: slow DNS/HTTPS cannot accumulate a backlog. The third worker
+    // leaves room for a new cycle while two canceled checks finish their I/O.
+    private final ExecutorService executor = new ThreadPoolExecutor(
+            0, 3, 30L, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
         Thread thread = new Thread(runnable, "cellular-ip-check");
         thread.setDaemon(true);
         return thread;
@@ -46,8 +54,23 @@ public final class CellularConnectionGate {
     private boolean registered;
     private boolean notificationQueued;
     private Network probeNetwork;
-    private long probeEpoch;
-    private Future<?> probe;
+    private final ArrayList<Probe> probes = new ArrayList<>();
+    private long nextAttemptAt;
+    private int probeSequence;
+
+    private static final class Probe {
+        final long epoch;
+        final Network network;
+        final String endpoint;
+        volatile boolean canceled;
+        Future<?> future;
+        Probe(long epoch, Network network, String endpoint) {
+            this.epoch = epoch;
+            this.network = network;
+            this.endpoint = endpoint;
+        }
+        boolean interrupted() { return canceled || Thread.currentThread().isInterrupted(); }
+    }
 
     private static final class Snapshot {
         final long epoch;
@@ -200,8 +223,9 @@ public final class CellularConnectionGate {
                 || (found != null && network.equals(found.network));
         if (selected && (lost || !eligible(caps))) {
             restartAfterNetworkChange();
-        } else if (snapshot == null && probeNetwork == null) {
-            scheduleCheck(lost ? RETRY_MS : 0L);
+        } else if (snapshot == null && !lost) {
+            // Capability callbacks need not wait for the next polling tick.
+            scheduleCheck(0L);
         }
     }
 
@@ -212,7 +236,7 @@ public final class CellularConnectionGate {
         discardProbe();
         setStatus(WAITING);
         changed();
-        scheduleCheck(RETRY_MS);
+        scheduleCheck(0L);
     }
 
     private NetworkCapabilities capabilities(Network network) {
@@ -224,61 +248,71 @@ public final class CellularConnectionGate {
     private static boolean eligible(NetworkCapabilities caps) {
         return caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
                 && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
                 && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN);
     }
 
     private void checkConnection() {
-        if (!active || closed || probeNetwork != null) return;
-        if (isReady()) return;
-        Network candidate = null;
-        if (connectivity != null) {
+        if (!active || closed || isReady()) return;
+        if (probeNetwork != null && !eligible(capabilities(probeNetwork))) {
+            restartAfterNetworkChange();
+            return;
+        }
+        if (probeNetwork == null && connectivity != null) {
             try {
                 for (Network network : connectivity.getAllNetworks()) {
-                    if (eligible(capabilities(network))) { candidate = network; break; }
+                    if (eligible(capabilities(network))) { probeNetwork = network; break; }
                 }
             } catch (RuntimeException ignored) { }
         }
-        if (candidate == null) {
+        if (probeNetwork == null) {
             setStatus(WAITING);
             scheduleCheck(RETRY_MS);
             return;
         }
-        final Network selected = candidate;
-        final long generation = epoch.get();
-        probeNetwork = selected;
-        probeEpoch = generation;
+        final long now = SystemClock.elapsedRealtime();
+        if (now < nextAttemptAt) {
+            scheduleCheck(nextAttemptAt - now);
+            return;
+        }
+        // Cadence is measured from the start, not from the previous response/timeout.
+        nextAttemptAt = now + RETRY_MS;
+        scheduleCheck(RETRY_MS);
+        if (probes.size() >= MAX_IN_FLIGHT) return;
+        final Probe attempt = new Probe(epoch.get(), probeNetwork,
+                (probeSequence++ & 1) == 0
+                        ? "https://api.ipify.org" : "https://api64.ipify.org");
+        probes.add(attempt);
         setStatus("Confirmando IP público...");
         try {
-            probe = executor.submit(() -> {
+            attempt.future = executor.submit(() -> {
                 String confirmed = "";
-                try { confirmed = probePublicIp(selected); }
-                catch (IOException | RuntimeException ignored) { }
+                try {
+                    if (!attempt.interrupted()) confirmed = probePublicIp(attempt);
+                } catch (IOException | RuntimeException ignored) { }
                 final String result = confirmed;
-                handler.post(() -> acceptProbe(generation, selected, result));
+                handler.post(() -> acceptProbe(attempt, result));
             });
         } catch (RejectedExecutionException ignored) {
-            probeNetwork = null;
-            probe = null;
-            if (!closed) scheduleCheck(RETRY_MS);
+            // All workers can briefly be occupied by old network I/O. Never queue it.
+            probes.remove(attempt);
         }
     }
 
-    private void acceptProbe(long generation, Network network, String ip) {
-        if (!current(generation) || probeEpoch != generation
-                || !network.equals(probeNetwork)) return;
-        probe = null;
-        probeNetwork = null;
-        if (!eligible(capabilities(network))) {
+    private void acceptProbe(Probe attempt, String ip) {
+        probes.remove(attempt);
+        if (!current(attempt.epoch) || attempt.canceled || snapshot != null
+                || !attempt.network.equals(probeNetwork)) return;
+        if (!eligible(capabilities(attempt.network))) {
             restartAfterNetworkChange();
             return;
         }
         if (ip.length() == 0) {
             setStatus("Aguardando confirmação do IP público...");
-            scheduleCheck(RETRY_MS);
-            return;
+            return; // The independent one-second cadence is already scheduled.
         }
-        snapshot = new Snapshot(generation, network, ip);
+        snapshot = new Snapshot(attempt.epoch, attempt.network, ip);
+        handler.removeCallbacks(check);
+        cancelInFlight();
         setStatus("Internet móvel conectada. IP confirmado.");
         changed();
     }
@@ -290,10 +324,18 @@ public final class CellularConnectionGate {
 
     private void discardProbe() {
         handler.removeCallbacks(check);
-        if (probe != null) probe.cancel(true);
-        probe = null;
+        cancelInFlight();
         probeNetwork = null;
-        probeEpoch = 0L;
+        nextAttemptAt = 0L;
+        probeSequence = 0;
+    }
+
+    private void cancelInFlight() {
+        for (Probe attempt : probes) {
+            attempt.canceled = true;
+            if (attempt.future != null) attempt.future.cancel(true);
+        }
+        probes.clear();
     }
 
     private void setStatus(String value) {
@@ -306,14 +348,17 @@ public final class CellularConnectionGate {
         handler.post(notification);
     }
 
-    private static String probePublicIp(Network network) throws IOException {
-        // Binding to this Network prevents a Wi-Fi/default-network IP from being accepted.
-        URLConnection opened = network.openConnection(new URL("https://api64.ipify.org"));
+    private static String probePublicIp(Probe attempt) throws IOException {
+        // A successful HTTPS response proves Internet access without Android validation.
+        // Binding to this Network excludes Wi-Fi/default-network IPs.
+        if (attempt.interrupted()) throw new IOException();
+        URLConnection opened = attempt.network.openConnection(new URL(attempt.endpoint));
         if (!(opened instanceof HttpsURLConnection)) throw new IOException();
         HttpsURLConnection connection = (HttpsURLConnection) opened;
         try {
-            connection.setConnectTimeout(3_000);
-            connection.setReadTimeout(3_000);
+            if (attempt.interrupted()) throw new IOException();
+            connection.setConnectTimeout(1_000);
+            connection.setReadTimeout(1_000);
             connection.setInstanceFollowRedirects(false);
             connection.setUseCaches(false);
             connection.setRequestMethod("GET");
@@ -323,12 +368,13 @@ public final class CellularConnectionGate {
             int size = 0;
             try (InputStream input = connection.getInputStream()) {
                 while (size < bytes.length) {
+                    if (attempt.interrupted()) throw new IOException();
                     int count = input.read(bytes, size, bytes.length - size);
                     if (count < 0) break;
                     size += count;
                 }
             }
-            if (size == 0 || size > 128) throw new IOException();
+            if (attempt.interrupted() || size == 0 || size > 128) throw new IOException();
             String ip = new String(bytes, 0, size, StandardCharsets.US_ASCII).trim();
             if (!publicLiteral(ip)) throw new IOException();
             return ip;

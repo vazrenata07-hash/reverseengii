@@ -2,7 +2,7 @@
 
 Aplicativo Android que usa acessibilidade para desligar e religar a chave **Potência de rádio móvel** na tela de informações do telefone, em intervalos escolhidos pelo usuário.
 
-Versão **1.1**. O aplicativo funciona sem conta ou anúncios e consulta o ipify por HTTPS, exclusivamente pela rede móvel, para confirmar o IP público de saída. Não exige root. Android mínimo: **8.0 (API 26)**. Compilado com API 35.
+Versão **1.2**. O aplicativo funciona sem conta ou anúncios e consulta o ipify por HTTPS, exclusivamente pela rede móvel, para confirmar o IP público de saída. Não exige root. Android mínimo: **8.0 (API 26)**. Compilado com API 35.
 
 ## Instalação e uso
 
@@ -15,7 +15,8 @@ Versão **1.1**. O aplicativo funciona sem conta ou anúncios e consulta o ipify
 
 ## Comportamento e limites
 
-- O intervalo só começa após a rede móvel estar validada e uma consulta HTTPS confirmar o IP público de saída. A reconexão não consome o intervalo: com 10 segundos configurados, são 10 segundos completos depois dessa confirmação. Isso vale também no início da rotina.
+- O intervalo só começa após uma consulta HTTPS pela rede móvel confirmar o IP público de saída. A reconexão não consome o intervalo: com 10 segundos configurados, são 10 segundos completos depois dessa confirmação. Isso vale também no início da rotina.
+- Enquanto aguarda o IP, inicia novas tentativas a cada segundo, com concorrência limitada e limites curtos de conexão e leitura. A primeira resposta válida libera a contagem e encerra as consultas restantes. A consulta começa assim que a rede móvel aparece; não espera a validação separada do Android. A cadência não garante que o servidor responda em um segundo.
 - Se a rede móvel cair durante a contagem, o app aguarda a reconexão, confirma novamente o IP público e reinicia o intervalo completo. Wi-Fi não confirma a conexão móvel.
 - O teste executa um ciclo imediatamente. A pausa desligado começa quando a interface confirma a chave desligada.
 - Desligar e religar essa chave é uma função do aparelho e não costuma causar dano físico. Interrompe temporariamente dados móveis, hotspot, chamadas e SMS; ciclos frequentes podem aumentar o consumo de bateria. Em alguns aparelhos, a chave afeta os dois chips.
