@@ -1,0 +1,19 @@
+﻿DIAGNOSTICO OPCIONAL DO MINT V23/V24
+
+Use somente se a 888 continuar parada na abertura ou para capturar o erro da V23.
+
+1. Feche todas as janelas do Mint.
+2. Extraia diagnosticar-mint.bat e diagnosticar-mint.ps1 na mesma pasta do EXE.
+3. Execute diagnosticar-mint.bat e conclua apenas o aviso inicial, se aparecer.
+4. Aguarde a recarga da aba e os 25 segundos da coleta. Nao faca login durante ela.
+5. Feche o Mint. O arquivo mint-diagnostico-DATA-HORA.txt fica na mesma pasta.
+6. Envie esse TXT na conversa para analisar a excecao original.
+
+Se houver V23 e V24 na pasta, a ferramenta escolhe a V24. Para examinar a V23,
+coloque os scripts na pasta que contem apenas o EXE V23, ou execute no PowerShell:
+.\diagnosticar-mint.ps1 -ExePath '.\Mint-Browser-Windows-v23-Portable-danill0.exe'
+
+A ferramenta conecta somente a uma porta local do WebView2 e grava o TXT local.
+Nao grava cookies, cabecalhos, armazenamento ou corpos de requisicoes.
+A ausencia de erros no log nao comprova que o site terminou a inicializacao.
+Scripts revisados estaticamente; nao executados no Windows neste ambiente.
