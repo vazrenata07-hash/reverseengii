@@ -17,7 +17,7 @@ public final class EarlyFactory extends AppComponentFactory {
     private boolean identityPrepared;
 
     public EarlyFactory() {
-        Log.i("YCLean", "v3.3.1 early factory entered");
+        Log.i("YCLean", "v3.3.2 early factory entered");
         SignatureAdapter.install();
     }
 

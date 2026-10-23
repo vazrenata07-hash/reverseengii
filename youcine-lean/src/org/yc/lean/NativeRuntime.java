@@ -1,13 +1,14 @@
 package org.yc.lean;
 
 import android.content.Context;
-import android.os.Process;
 import android.util.Log;
+import dalvik.system.DexClassLoader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
@@ -16,60 +17,105 @@ import java.util.zip.ZipFile;
 final class NativeRuntime {
     private static boolean attempted;
     private static boolean available;
+    private static volatile boolean bound;
+    private static ClassLoader engineLoader;
     private static native boolean ready();
+    private static native void log0(int priority, String message);
 
     static synchronized boolean load(Context context) {
         if (attempted) return available;
         attempted = true;
         try {
-            String arch = System.getProperty("os.arch", "").toLowerCase(Locale.US);
-            String abi;
-            if (arch.contains("x86") || arch.contains("amd64") || arch.matches("i[3-6]86")) {
-                abi = Process.is64Bit() ? "x86_64" : "x86";
-            } else if (arch.contains("arm") || arch.contains("aarch64")) {
-                abi = Process.is64Bit() ? "arm64-v8a" : "armeabi-v7a";
-            } else throw new IOException("Unsupported VM architecture: " + arch);
+            // os.arch is ARM64 in the supplied MEmu process, while its ART and
+            // executable are x86_64. Read the VM executable's actual ELF ISA.
+            String abi = executableAbi();
             File directory = new File(context.getCodeCacheDir(), "yc_identity/" + abi);
             if (!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create hook directory");
-            File library = new File(directory, "libycidentity.so");
-            String entryName = "assets/yc_hooks/" + abi + "/libycidentity.so";
+            File library, dex;
             try (ZipFile zip = new ZipFile(OriginalApk.container(context))) {
-                ZipEntry entry = zip.getEntry(entryName);
-                ZipEntry digestEntry = zip.getEntry(entryName + ".sha256");
-                if (entry == null || digestEntry == null) throw new IOException("Native hook asset missing for " + abi);
-                byte[] digestBytes = new byte[64];
-                try (InputStream input = zip.getInputStream(digestEntry)) {
-                    int offset = 0;
-                    while (offset < digestBytes.length) {
-                        int count = input.read(digestBytes, offset, digestBytes.length - offset);
-                        if (count < 0) throw new IOException("Native digest incomplete");
-                        offset += count;
-                    }
-                }
-                String expected = new String(digestBytes, java.nio.charset.StandardCharsets.US_ASCII);
-                if (!library.isFile() || library.length() != entry.getSize() || !expected.equals(digest(library))) {
-                    File temporary = File.createTempFile("hook-", ".so", directory);
-                    try {
-                        try (InputStream input = zip.getInputStream(entry); FileOutputStream output = new FileOutputStream(temporary)) {
-                            byte[] buffer = new byte[65536];
-                            int count;
-                            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
-                            output.getFD().sync();
-                        }
-                        if (temporary.length() != entry.getSize() || !expected.equals(digest(temporary))) throw new IOException("Native digest mismatch");
-                        if (!temporary.renameTo(library)) throw new IOException("Cannot persist native hook");
-                    } finally { temporary.delete(); }
-                }
+                library = extract(zip, "assets/yc_hooks/" + abi + "/libycidentity.so", directory, "libycidentity.so");
+                dex = extract(zip, "assets/yc_hooks/engine.dex", directory, "engine.dex");
             }
-            System.load(library.getAbsolutePath());
-            available = ready();
-            Log.i("YCLean", "ART identity runtime ready=" + available + " VM ABI=" + abi);
+            // A parent from the app would inherit its translated ARM namespace.
+            // The boot parent and an ISA-specific library path make a separate
+            // native loader namespace; the original player's loader is intact.
+            ClassLoader boot = ClassLoader.getSystemClassLoader();
+            while (boot.getParent() != null) boot = boot.getParent();
+            engineLoader = new DexClassLoader(dex.getAbsolutePath(), directory.getAbsolutePath(), directory.getAbsolutePath(), boot);
+            Class<?> entry = Class.forName("org.yc.lean.EngineEntry", true, engineLoader);
+            Object result = entry.getMethod("load", String.class, Class.class, Class.class)
+                    .invoke(null, library.getAbsolutePath(), NativeRuntime.class, MethodHook.class);
+            bound = true;
+            available = Boolean.TRUE.equals(result) && ready();
+            info("ART identity runtime ready=" + available + " VM ABI=" + abi + " loader=isolated");
         } catch (Exception failure) {
-            Log.w("YCLean", "ART identity runtime unavailable", failure);
+            Throwable cause = failure instanceof InvocationTargetException ? ((InvocationTargetException) failure).getCause() : failure;
+            warn("ART identity runtime unavailable", cause);
         } catch (LinkageError failure) {
-            Log.w("YCLean", "ART identity runtime could not load", failure);
+            warn("ART identity runtime could not load", failure);
         }
         return available;
+    }
+
+    static void info(String message) { write(Log.INFO, message); }
+    static void warn(String message) { write(Log.WARN, message); }
+    static void warn(String message, Throwable failure) {
+        java.io.StringWriter stack = new java.io.StringWriter();
+        failure.printStackTrace(new java.io.PrintWriter(stack));
+        write(Log.WARN, message + "\n" + stack);
+    }
+    private static void write(int priority, String message) {
+        if (bound) { log0(priority, message); return; }
+        Log.println(priority, "YCLean", message);
+    }
+
+    private static String executableAbi() throws IOException {
+        byte[] header = new byte[20];
+        try (InputStream input = new FileInputStream("/proc/self/exe")) {
+            int at = 0;
+            while (at < header.length) {
+                int count = input.read(header, at, header.length - at);
+                if (count < 0) throw new IOException("VM executable ELF header incomplete");
+                at += count;
+            }
+        }
+        if (header[0] != 127 || header[1] != 'E' || header[2] != 'L' || header[3] != 'F' || header[5] != 1)
+            throw new IOException("VM executable is not a little-endian ELF");
+        int machine = (header[18] & 255) | ((header[19] & 255) << 8);
+        if (header[4] == 2 && machine == 62) return "x86_64";
+        if (header[4] == 1 && machine == 3) return "x86";
+        if (header[4] == 2 && machine == 183) return "arm64-v8a";
+        if (header[4] == 1 && machine == 40) return "armeabi-v7a";
+        throw new IOException("Unsupported VM executable: class=" + header[4] + " machine=" + machine);
+    }
+
+    private static File extract(ZipFile zip, String name, File directory, String fileName) throws Exception {
+        ZipEntry entry = zip.getEntry(name), digestEntry = zip.getEntry(name + ".sha256");
+        if (entry == null || digestEntry == null) throw new IOException("Engine asset missing: " + name);
+        byte[] expectedBytes = new byte[64];
+        try (InputStream input = zip.getInputStream(digestEntry)) {
+            int at = 0;
+            while (at < expectedBytes.length) {
+                int count = input.read(expectedBytes, at, expectedBytes.length - at);
+                if (count < 0) throw new IOException("Engine digest incomplete");
+                at += count;
+            }
+        }
+        String expected = new String(expectedBytes, java.nio.charset.StandardCharsets.US_ASCII);
+        File destination = new File(directory, fileName);
+        if (destination.isFile() && destination.length() == entry.getSize() && expected.equals(digest(destination))) return destination;
+        File temporary = File.createTempFile("engine-", ".tmp", directory);
+        try {
+            try (InputStream input = zip.getInputStream(entry); FileOutputStream output = new FileOutputStream(temporary)) {
+                byte[] buffer = new byte[65536];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                output.getFD().sync();
+            }
+            if (temporary.length() != entry.getSize() || !expected.equals(digest(temporary))) throw new IOException("Engine asset digest mismatch");
+            if (!temporary.renameTo(destination)) throw new IOException("Cannot persist engine asset");
+            return destination;
+        } finally { temporary.delete(); }
     }
 
     private static String digest(File file) throws Exception {

@@ -1,5 +1,34 @@
 # Resultado do log youcine-rotina.txt
 
+## Atualizacao: coleta 20261023-181826-899
+
+O SHA-256 corresponde exatamente ao APK v3.3.1 publicado. A descoberta por
+mapas encontrou o ART, mas o motor falhou antes de instalar callbacks:
+
+```text
+ART discovery phdr=0 maps=5 candidates=1 vm_bits=64
+ART symbols parsed=17 source=/system/lib64/libart.so bias_source=maps sections=11
+Failed to find GetMethodShorty
+Failed to init art method
+ART hook initialization ready=0
+```
+
+Os mapas do PID 13305 mostram o auxiliar em yc_identity/arm64-v8a, com
+permissoes r--p, e libhoudini.so no processo. O ART real e a biblioteca
+x86_64 /system/lib64/libart.so. Sua copia obtida por ADB tem 29 secoes e o
+simbolo local _ZN3artL15GetMethodShortyEP7_JNIEnvP10_jmethodID em 0x404340.
+Portanto, o simbolo existe no ART fornecido, mas nao foi visto na leitura
+do auxiliar ARM64 traduzido. Nao se conclui que falte o simbolo no emulador.
+
+A selecao por os.arch feita na v3.3.1 levou ao auxiliar ARM64. A v3.3.2
+troca essa origem pelo ELF do executavel da VM e usa um loader separado,
+sem pai no namespace ARM da aplicacao, com registro JNI explicito para as
+classes de regras. Mantem a estrategia de abertura da v3.2. O proximo
+resultado precisa mostrar a ABI real do auxiliar e a inicializacao do motor;
+os callbacks nao foram executados com sucesso na coleta recebida.
+
+## Coleta anterior: v3.3
+
 O arquivo fornecido apos a v3.3 contem historico de varias versoes. As duas
 execucoes identificadas como v3.3 tem PIDs 8145 e 8691. Ambas registram:
 

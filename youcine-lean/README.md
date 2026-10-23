@@ -1,4 +1,29 @@
-# YC TV 1.15.4 — Lean v3.3.1 experimental
+# YC TV 1.15.4 — Lean v3.3.2 experimental
+
+## Correcao v3.3.2
+
+A coleta `20261023-181826-899` confirma o APK exato v3.3.1. A descoberta
+pelos mapas funcionou (`phdr=0 maps=5`), mas o motor encontrou apenas 17
+simbolos e falhou em GetMethodShorty. Os mapas mostram o auxiliar ARM64 em
+code_cache/yc_identity/arm64-v8a, executado por Houdini, enquanto o ART do
+processo e x86_64. O libart.so copiado pelo ADB tem 29 secoes e o simbolo
+GetMethodShorty; a leitura pelo auxiliar traduzido registrou 11 secoes.
+
+A v3.3.2 determina a arquitetura pelo ELF de /proc/self/exe em Java, sem
+usar os.arch para escolher a biblioteca. Carrega EngineEntry por um
+DexClassLoader separado com pai boot e diretorio nativo da arquitetura da
+VM. Isso evita herdar o namespace ARM do aplicativo no carregamento do
+auxiliar. EngineEntry carrega a biblioteca e registra explicitamente os
+metodos JNI das classes de regras por RegisterNatives. O loader e mantido
+vivo durante o processo. O carregador original e a ponte ARM do player
+continuam preservados.
+
+Os registros das regras passam pela ponte JNI de log depois do carregamento;
+a coleta anterior nao mostrou mensagens Java dessa fase, embora contivesse
+as mensagens nativas. O log distingue ABI do auxiliar, motor pronto, vinculos
+JNI, instalacao de regras e primeira execucao. Nao foram executados testes do
+aplicativo: a inicializacao do motor e o efeito das regras ainda dependem
+do teste do usuario.
 
 ## Correcao v3.3.1
 
@@ -93,9 +118,9 @@ python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.3.1.apk`. O workflow `YC TV Lean Build`
+Saída: `build/yc-tv-1.15.4-lean-v3.3.2.apk`. O workflow `YC TV Lean Build`
 compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.3.1`.
+fontes na release `yc-tv-1.15.4-lean-v3.3.2`.
 
 ## Dependências e fontes
 

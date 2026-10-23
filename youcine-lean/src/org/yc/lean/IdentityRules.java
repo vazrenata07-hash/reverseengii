@@ -2,7 +2,6 @@ package org.yc.lean;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 import dalvik.system.DexFile;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -28,8 +27,8 @@ final class IdentityRules {
         ClassLoader loader = context.getClassLoader();
         retryBeans(loader);
         try { installPersistence(context, loader); }
-        catch (Exception failure) { Log.w("YCLean", "Properties rule discovery failed", failure); }
-        catch (LinkageError failure) { Log.w("YCLean", "Properties rule unavailable", failure); }
+        catch (Exception failure) { NativeRuntime.warn("Properties rule discovery failed", failure); }
+        catch (LinkageError failure) { NativeRuntime.warn("Properties rule unavailable", failure); }
     }
 
     static synchronized void retryBeans(ClassLoader loader) {
@@ -63,11 +62,11 @@ final class IdentityRules {
             selected.setAccessible(true);
             if (!MethodHook.constructor(selected, fingerprint, strings)) throw new IllegalStateException("Constructor hook rejected");
             INSTALLED.add(name);
-            Log.i("YCLean", "Request fingerprint hook installed: " + name + " mask=" + (1 << fingerprint));
+            NativeRuntime.info("Request fingerprint hook installed: " + name + " mask=" + (1 << fingerprint));
         } catch (Exception failure) {
-            Log.w("YCLean", "Request identity rule not installed: " + name, failure);
+            NativeRuntime.warn("Request identity rule not installed: " + name, failure);
         } catch (LinkageError failure) {
-            Log.w("YCLean", "Request identity class unavailable: " + name, failure);
+            NativeRuntime.warn("Request identity class unavailable: " + name, failure);
         }
     }
 
@@ -120,14 +119,14 @@ final class IdentityRules {
                 Storage candidate = storage(loader, name);
                 if (candidate == null) continue;
                 if (selected != null && selected.type != candidate.type) {
-                    Log.w("YCLean", "Properties rule skipped: ambiguous class schema");
+                    NativeRuntime.warn("Properties rule skipped: ambiguous class schema");
                     return;
                 }
                 selected = candidate;
             }
         }
         if (selected == null) {
-            Log.w("YCLean", "Properties rule skipped: no matching class schema");
+            NativeRuntime.warn("Properties rule skipped: no matching class schema");
             return;
         }
         selected.writer.setAccessible(true);
@@ -136,10 +135,10 @@ final class IdentityRules {
         // name for the reference class; renamed classes require new evidence.
         if (selected.type.getName().equals("i2.f") && selected.reset != null) {
             selected.reset.setAccessible(true);
-            if (!MethodHook.noOp(selected.reset)) Log.w("YCLean", "Reference t() rule not installed");
+            if (!MethodHook.noOp(selected.reset)) NativeRuntime.warn("Reference t() rule not installed");
         }
         cache.edit().putString("storage_class_11504", selected.type.getName()).apply();
-        Log.i("YCLean", "Properties persistence rule installed: " + selected.type.getName() + "." + selected.writer.getName());
+        NativeRuntime.info("Properties persistence rule installed: " + selected.type.getName() + "." + selected.writer.getName());
     }
 
     private static List<String> candidates(ClassLoader loader) throws Exception {

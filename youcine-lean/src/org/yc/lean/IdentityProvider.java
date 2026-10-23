@@ -12,8 +12,9 @@ import android.util.Log;
 /** Installed after protected Application.attach, before Application.onCreate. */
 public final class IdentityProvider extends ContentProvider {
     @Override public boolean onCreate() {
-        Log.i("YCLean", "v3.3.1 identity provider entered");
+        Log.i("YCLean", "v3.3.2 identity provider entered");
         IdentityRules.install(getContext());
+        NativeRuntime.info("v3.3.2 identity provider initialized");
         Application application = (Application) getContext().getApplicationContext();
         if (application != null) {
             application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {

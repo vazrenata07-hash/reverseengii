@@ -1,6 +1,5 @@
 package org.yc.lean;
 
-import android.util.Log;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
@@ -75,6 +74,6 @@ public final class MethodHook {
     }
 
     private synchronized void reportOnce(String prefix) {
-        if (!logged) { logged = true; Log.i("YCLean", prefix + label); }
+        if (!logged) { logged = true; NativeRuntime.info(prefix + label); }
     }
 }

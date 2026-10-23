@@ -178,6 +178,9 @@ def main():
                 name = "assets/yc_hooks/" + abi + "/libycidentity.so"
                 target.writestr(name, data, compress_type=zipfile.ZIP_DEFLATED)
                 target.writestr(name + ".sha256", hashlib.sha256(data).hexdigest().encode("ascii"))
+            engine_dex = args.dex.read_bytes()
+            target.writestr("assets/yc_hooks/engine.dex", engine_dex, compress_type=zipfile.ZIP_DEFLATED)
+            target.writestr("assets/yc_hooks/engine.dex.sha256", hashlib.sha256(engine_dex).hexdigest().encode("ascii"))
             for license_path in sorted((Path(__file__).parent / "licenses").glob("*.txt")):
                 target.writestr("assets/yc_licenses/" + license_path.name, license_path.read_bytes(),
                                 compress_type=zipfile.ZIP_DEFLATED)
