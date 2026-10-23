@@ -20,8 +20,9 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
     }
     lsplant::InitInfo info;
     info.inline_hooker = [](void* target, void* replacement) -> void* {
-        void* backup = nullptr;
-        return DobbyHook(target, replacement, &backup) == 0 ? backup : nullptr;
+        dobby_dummy_func_t backup = nullptr;
+        return DobbyHook(target, reinterpret_cast<dobby_dummy_func_t>(replacement), &backup) == 0
+            ? reinterpret_cast<void*>(backup) : nullptr;
     };
     info.inline_unhooker = [](void* target) { return DobbyDestroy(target) == 0; };
     info.art_symbol_resolver = [resolver = symbols](std::string_view name) { return resolver->exact(name); };

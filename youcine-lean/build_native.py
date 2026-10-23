@@ -11,7 +11,7 @@ VENDOR = BUILD / "vendor"
 ABIS = ("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
 DEPENDENCIES = {
     "lsplant": ("https://github.com/LSPosed/LSPlant.git", "7217ac6f41e2bda549e4acb54e632abb03e5ccaf"),
-    "dobby": ("https://github.com/jmpews/Dobby.git", "5dfc8546954ce3b3198132ab13fddb89ee92cdd7"),
+    "dobby": ("https://github.com/jmpews/Dobby.git", "9c85e74f92eda36b99ddb0fddb17a9df2278a4d3"),
     "xz": ("https://github.com/tukaani-project/xz.git", "6e8732c5a317a349986a4078718f1d95b67072c5"),
 }
 

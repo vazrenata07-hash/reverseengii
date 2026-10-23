@@ -88,7 +88,7 @@ fontes na release `yc-tv-1.15.4-lean-v3.3`.
 | --- | --- | --- |
 | LSPlant v6.4 | 7217ac6f41e2bda549e4acb54e632abb03e5ccaf | https://github.com/LSPosed/LSPlant — LGPL-3.0 |
 | DexBuilder, submódulo LSPlant | 9d57844a301077abf4c29e061b2458c56a363c8f | https://github.com/LSPosed/DexBuilder — LGPL-3.0 |
-| Dobby | 5dfc8546954ce3b3198132ab13fddb89ee92cdd7 | https://github.com/jmpews/Dobby — Apache-2.0 |
+| Dobby | 9c85e74f92eda36b99ddb0fddb17a9df2278a4d3 | https://github.com/jmpews/Dobby — Apache-2.0 |
 | liblzma/XZ 5.4.6 | 6e8732c5a317a349986a4078718f1d95b67072c5 | https://github.com/tukaani-project/xz — ver COPYING-XZ.txt |
 
 Os textos estão em `licenses/` e também no APK. As fontes próprias desta
