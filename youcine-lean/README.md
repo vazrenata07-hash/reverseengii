@@ -1,79 +1,98 @@
-# YC TV 1.15.4 — Lean v3.2 experimental
+# YC TV 1.15.4 — Lean v3.3 experimental
 
-Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório.
-Inicializador próprio em Java para a base TV, voltado a Android 9 e 10.
+Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório. Android 9/10.
+O usuário confirmou que a v3.2 abriu, mas sua rotina de identidade não teve o
+efeito esperado. A v3.3 preserva a estratégia de abertura e muda essa rotina.
 
-## Problema tratado
+## Abertura preservada
 
-A v3.1 entrega o APK original em
-`/data/data/com.world.youcinetv/no_backup/yc_lean/…`. A leitura estática do
-carregador original revelou uma rejeição explícita desse layout: na função
-`libexec.so+0x48c10`, depois de uma verificação de certificados por JarFile,
-o código rejeita um caminho que começa com `/data/` e contém
-`/com.world.youcinetv/`. Nesse ramo, zera o caminho interno e chama a rotina
-de encerramento com resultado falso. A assinatura e a normalização do caminho
-não eliminam essa condição.
+O APK original assinado continua na pasta externa específica do aplicativo,
+obtida por `getExternalFilesDirs("yc_lean")`, validado por tamanho e SHA-256.
+O caminho real continua obtido por `Os.readlink("/proc/self/fd/" + fd)` antes
+da delegação à fábrica original. Isso conserva a solução da v3.2 para o layout
+rejeitado por `libexec.so+0x48c10`: caminho iniciando em `/data/` e contendo
+`/com.world.youcinetv/`. O adaptador local de assinatura também permanece.
 
-A coleta passiva `20261023-172019` localizou três threads em pausas nativas.
-A thread que depois emite `kill(0, 9)` estava na rotina `+0x5d560`, com retorno
-da pausa em `+0x5d5f0`. Outra thread foi observada em `+0x6d85f`, dentro do
-ramo de encerramento `+0x6d830`, com candidatos a retornos em `+0x48d94` e
-`+0x48c10`. Os retornos imediatos da espera foram confirmados por opcode e
-destino de chamada. A condição do caminho foi identificada pela leitura do
-código e das constantes do carregador, não por bloqueio dos sinais.
+Não foram incorporados o carregador nem a biblioteca Dex2C do mod de terceiros.
 
-## Mudança na v3.2
+## Rotina nova
 
-A imagem original passa para a pasta externa específica do aplicativo,
-obtida por `Context.getExternalFilesDirs("yc_lean")`. Essa pasta é acessível
-pelo próprio app sem root ou solicitação de permissão de armazenamento no
-Android 9/10. O contexto é obtido do LoadedApk já vinculado, antes da criação
-da Application original; isso usa reflexão em métodos internos do Android.
+A v3.2 persistia um UUID e o atribuía a `Build.FINGERPRINT`. Isso não reproduzia
+o mod: ele gera UUID no argumento padrão `fingerprint` de dois objetos de
+autenticação. A v3.3 remove a identidade persistida e a atribuição global.
 
-O inicializador tenta os diretórios disponíveis, mantém a validação de tamanho
-e SHA-256 e obtém o caminho real por `Os.readlink("/proc/self/fd/" + fd)`.
-Antes de apresentá-lo ao carregador, rejeita o mesmo predicado de layout
-identificado no código nativo. A mensagem `Original image location:
-app-specific external` distingue essa etapa. Se nenhum diretório for utilizável,
-a falha é registrada. O armazenamento externo específico do app precisa estar
-disponível para essa estratégia.
+| Objeto | Parâmetro fingerprint, índice zero | Máscara padrão |
+| --- | --- | --- |
+| PreInstallAuthBean | 17 | 0x20000 |
+| SnTokenBean | 15 | 0x8000 |
 
-A biblioteca nativa original permanece intacta. Não há bloqueio de kill,
-modificação de syscalls, ptrace ou ferramenta de diagnóstico dentro do APK.
-As outras adaptações da v3.1 permanecem: consultas locais de PackageInfo e
-ApplicationInfo, caminhos do LoadedApk e a identidade privada UUID aplicada
-a Build.FINGERPRINT antes de delegar à fábrica original. A identidade fica
-no armazenamento interno, não junto da imagem externa.
+O novo callback fornece `UUID.randomUUID().toString()` quando a máscara
+solicita o fingerprint padrão, limpa somente esse bit e chama o construtor
+original. Cada construção nesse caminho recebe um UUID próprio. Valores
+explicitamente passados pelo chamador são preservados. Android ID, MAC e
+serial não são randomizados: o código examinado do mod consulta o sistema.
 
-## Estado e limitações da entrega
+A rotina de escrita Properties de três argumentos String, vazia no mod,
+também passa a ser omitida quando sua classe correspondente é localizada.
+O reconhecimento verifica formato dos campos e métodos; resultado ausente
+ou ambíguo é registrado e não recebe alteração. A rotina `t()` vazia só é
+interceptada se a classe ainda for `i2.f` com o formato esperado. O código não
+apaga arquivos globais nem presume que todas as chaves de sessão sejam cache.
 
-A coleta localiza rotinas do encerramento e o código novo trata uma condição
-que rejeita o caminho fornecido pela v3.1. Não foram capturados todos os
-argumentos e resultados das verificações concorrentes; a condição do caminho
-não é apresentada como causa única confirmada. A abertura da v3.2, a execução
-do player e a renovação do trial ainda dependem dos testes do usuário.
+O motor de interceptação é LSPlant v6.4 com Dobby; as regras Java, ponte JNI e
+leitor dos símbolos ELF de ART são deste projeto. O leitor inclui suporte a
+`.gnu_debugdata` por liblzma. Um ContentProvider privado inicia as regras
+depois de Application.attach e antes de Application.onCreate. Há tentativas
+limitadas adicionais nos primeiros eventos de Activity se os objetos ainda
+não estiverem visíveis. O auxiliar é compilado para ARM32, ARM64, x86 e x64.
 
-O mod de terceiros não é reutilizado. O carregador protegido original continua
-presente. O certificado registrado no Android é o da assinatura de
-desenvolvimento, e não existe virtualização completa das verificações nativas.
-O player ARM depende da ponte nativa no MEmu x86_64. Gerar outra identidade local
-não comprova concessão de novo trial pelo servidor.
+As quatro bibliotecas ficam em `assets/yc_hooks/`, com SHA-256, e só a versão
+correspondente à VM é extraída para code_cache. Não se adicionam novas ABIs ao
+diretório `lib/` do APK: isso preserva a seleção das bibliotecas originais e
+a ponte ARM usada pelo player no MEmu. A dependência dessa ponte permanece.
 
-O APK inclui a imagem original de aproximadamente 34 MB e fica próximo de
-68 MB. A imagem validada é reutilizada nas próximas aberturas. Seu SHA-256 é
-`5629c0dc0dc0b631f09bd21f81a5d671e64e6d516cb4a28a9b9fb45a2971b231`.
-O certificado original utilizado pelo adaptador tem SHA-256
-`0fd3d98319e7dc05830accaedcc9e2af8f3b89234a21a4d4e5ff5e04fecbb2a7`.
+## Estado da entrega
 
-## Compilar e publicar
+A análise estática detalhada está em
+[COMPARACAO-IDENTIDADE.md](../youcine-diagnostico/COMPARACAO-IDENTIDADE.md).
+O mod de referência é 1.15.1; a base nova é 1.15.4, cujo código protegido de
+autenticação não foi extraído. Por isso os hooks exigem as assinaturas e os
+campos esperados. Os logs `YCLean` distinguem inicialização do motor, instalação
+dos callbacks e primeira aplicação de fingerprint, sem imprimir os valores.
 
-Linux, Python 3.11+ e JDK 17 ou 21:
+Compilar, empacotar e assinar não confirmam a abertura ou o efeito no servidor.
+Não foram executados testes do aplicativo; todos os testes nos dispositivos
+ficam com o usuário. A abertura da v3.2 foi confirmada pelo usuário; a nova
+ponte nativa e as regras da v3.3 ainda precisam dessa confirmação. Uma nova
+identidade local não comprova concessão de novo trial pelo servidor.
+
+## Compilar
+
+Linux, Python 3.11+, JDK 17/21, Git, CMake 3.31, Ninja e Android NDK
+26.3.11579264. As fontes externas são obtidas em commits fixos por
+`build_native.py`; o build não executa testes.
 
 ```sh
+export ANDROID_NDK_HOME=/caminho/para/android-sdk/ndk/26.3.11579264
+python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.2.apk`. O script confere os insumos,
-compila, empacota e assina; não executa o aplicativo nem testes.
-O workflow `YC TV Lean Build` publica APK e fontes na release
-`yc-tv-1.15.4-lean-v3.2`. Testes de execução ficam com o usuário.
+Saída: `build/yc-tv-1.15.4-lean-v3.3.apk`. O workflow `YC TV Lean Build`
+compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
+fontes na release `yc-tv-1.15.4-lean-v3.3`.
+
+## Dependências e fontes
+
+| Componente | Revisão | Fonte/licença |
+| --- | --- | --- |
+| LSPlant v6.4 | 7217ac6f41e2bda549e4acb54e632abb03e5ccaf | https://github.com/LSPosed/LSPlant — LGPL-3.0 |
+| DexBuilder, submódulo LSPlant | 9d57844a301077abf4c29e061b2458c56a363c8f | https://github.com/LSPosed/DexBuilder — LGPL-3.0 |
+| Dobby | 5dfc8546954ce3b3198132ab13fddb89ee92cdd7 | https://github.com/jmpews/Dobby — Apache-2.0 |
+| liblzma/XZ 5.4.6 | 6e8732c5a317a349986a4078718f1d95b67072c5 | https://github.com/tukaani-project/xz — ver COPYING-XZ.txt |
+
+Os textos estão em `licenses/` e também no APK. As fontes próprias desta
+entrega são disponibilizadas sob LGPL-3.0-or-later; os componentes externos
+mantêm seus termos. Os scripts e revisões permitem recompilar e substituir
+as bibliotecas sem reutilizar binários do mod. O aplicativo original e seus
+componentes mantêm seus termos próprios.

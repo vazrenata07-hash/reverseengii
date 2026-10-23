@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 TOOLS = BUILD / "tools"
-ARTIFACT = "yc-tv-1.15.4-lean-v3.2"
+ARTIFACT = "yc-tv-1.15.4-lean-v3.3"
 DOWNLOADS = {
     "original.apk": (
         "https://github.com/vazrenata07-hash/reverseengii/releases/download/2.01/yc_1.15.4_ycsite.apk",
@@ -64,7 +64,7 @@ def main():
         *sorted(classes.rglob("*.class")))
     unsigned = BUILD / (ARTIFACT + "-unsigned.apk")
     run(sys.executable, ROOT / "package_apk.py", TOOLS / "original.apk",
-        dex / "classes.dex", unsigned)
+        dex / "classes.dex", unsigned, BUILD / "native-libs")
     run("java", "-jar", TOOLS / "signer.jar", "-a", unsigned, "--overwrite")
     # The signer selects the embedded development key and signs in place.
     destination = BUILD / (ARTIFACT + ".apk")

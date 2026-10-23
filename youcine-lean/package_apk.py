@@ -2,6 +2,7 @@
 """Add the bootstrap DEX and early factory without recompiling resources."""
 import argparse
 import copy
+import hashlib
 import re
 import struct
 import zipfile
@@ -10,6 +11,9 @@ from pathlib import Path
 NONE = 0xFFFFFFFF
 ANDROID = "http://schemas.android.com/apk/res/android"
 FACTORY = "org.yc.lean.EarlyFactory"
+PROVIDER = "org.yc.lean.IdentityProvider"
+AUTHORITY = "com.world.youcinetv.yc_lean_identity"
+ABIS = ("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
 
 
 def chunks(data, offset=8):
@@ -75,10 +79,27 @@ def string_pool(pool, additions):
 def patch_manifest(manifest):
     parts = list(chunks(manifest))
     pool_index = next(i for i, part in enumerate(parts) if part[0] == 1)
-    pool, strings = string_pool(parts[pool_index][2], [FACTORY])
+    attributes = {"name": 0x01010003, "exported": 0x01010010,
+                  "authorities": 0x01010018, "initOrder": 0x0101001a}
+    pool, strings = string_pool(parts[pool_index][2],
+                                [FACTORY, PROVIDER, AUTHORITY, "provider", *attributes])
     parts[pool_index] = (1, struct.unpack_from("<H", pool, 2)[0], pool)
+    map_index = next(i for i, part in enumerate(parts) if part[0] == 0x180)
+    _, map_header, resource_map = parts[map_index]
+    ids = list(struct.unpack_from("<%dI" % ((len(resource_map) - map_header) // 4), resource_map, map_header))
+    ids.extend([0] * max(0, max(strings.index(name) for name in attributes) + 1 - len(ids)))
+    for name, value in attributes.items():
+        index = strings.index(name)
+        if ids[index] not in (0, value):
+            raise ValueError("Conflicting Android XML resource ID: " + name)
+        ids[index] = value
+    resource_map = bytearray(resource_map[:map_header])
+    resource_map.extend(struct.pack("<%dI" % len(ids), *ids))
+    struct.pack_into("<I", resource_map, 4, len(resource_map))
+    parts[map_index] = (0x180, map_header, resource_map)
     factory_index = strings.index(FACTORY)
     changed = False
+    provider_added = False
     result = bytearray(manifest[:8])
     for kind, _, original in parts:
         part = bytearray(original)
@@ -92,9 +113,27 @@ def patch_manifest(manifest):
                     part[at + 15] = 3
                     struct.pack_into("<I", part, at + 16, factory_index)
                     changed = True
+        if kind == 0x103 and strings[struct.unpack_from("<I", part, 20)[0]] == "application":
+            namespace = strings.index(ANDROID)
+            provider = strings.index("provider")
+            values = {"name": (3, strings.index(PROVIDER)),
+                      "exported": (0x12, 0),
+                      "authorities": (3, strings.index(AUTHORITY)),
+                      "initOrder": (0x10, 2147483647)}
+            node = bytearray(struct.pack("<HHI", 0x102, 16, 36 + 20 * len(values)))
+            node.extend(struct.pack("<IIII6H", 1, NONE, NONE, provider, 20, 20, len(values), 0, 0, 0))
+            for name in sorted(values, key=attributes.get):
+                value_type, value = values[name]
+                node.extend(struct.pack("<IIIHBBI", namespace, strings.index(name),
+                                        value if value_type == 3 else NONE, 8, 0, value_type, value))
+            node.extend(struct.pack("<HHIIIII", 0x103, 16, 24, 1, NONE, NONE, provider))
+            result.extend(node)
+            provider_added = True
         result.extend(part)
     if not changed:
         raise ValueError("Original appComponentFactory attribute not found")
+    if not provider_added:
+        raise ValueError("Application end element not found")
     struct.pack_into("<I", result, 4, len(result))
     return bytes(result)
 
@@ -104,9 +143,13 @@ def main():
     parser.add_argument("original", type=Path)
     parser.add_argument("dex", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("native", type=Path)
     args = parser.parse_args()
     if args.original.resolve() == args.output.resolve():
         raise ValueError("Output must differ from the original APK")
+    libraries = {abi: (args.native / abi / "libycidentity.so").read_bytes() for abi in ABIS}
+    if any(not data.startswith(b"\x7fELF") for data in libraries.values()):
+        raise ValueError("Native build must supply all four ELF libraries")
     with zipfile.ZipFile(args.original) as source:
         names = source.namelist()
         if len(names) != len(set(names)):
@@ -129,6 +172,15 @@ def main():
             target.writestr(dex_name, args.dex.read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
             target.writestr("assets/yc_original_1_15_4.apk", args.original.read_bytes(),
                             compress_type=zipfile.ZIP_STORED)
+            # Assets preserve the original package's native ABI selection.
+            # Adding x86 libraries under lib/ would prevent ARM player extraction.
+            for abi, data in libraries.items():
+                name = "assets/yc_hooks/" + abi + "/libycidentity.so"
+                target.writestr(name, data, compress_type=zipfile.ZIP_DEFLATED)
+                target.writestr(name + ".sha256", hashlib.sha256(data).hexdigest().encode("ascii"))
+            for license_path in sorted((Path(__file__).parent / "licenses").glob("*.txt")):
+                target.writestr("assets/yc_licenses/" + license_path.name, license_path.read_bytes(),
+                                compress_type=zipfile.ZIP_DEFLATED)
     print(args.output)
 
 

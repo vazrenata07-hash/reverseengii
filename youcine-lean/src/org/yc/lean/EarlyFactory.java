@@ -8,9 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.ContentProvider;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
-import android.os.Build;
 import android.util.Log;
-import java.io.File;
 import java.lang.reflect.Field;
 
 /** Runs before the protected application's component factory (Android 9+). */
@@ -19,7 +17,7 @@ public final class EarlyFactory extends AppComponentFactory {
     private boolean identityPrepared;
 
     public EarlyFactory() {
-        Log.i("YCLean", "v3.2 early factory entered");
+        Log.i("YCLean", "v3.3 early factory entered");
         SignatureAdapter.install();
     }
 
@@ -43,16 +41,8 @@ public final class EarlyFactory extends AppComponentFactory {
                 throw new IllegalStateException("Application data directory unavailable");
             }
             OriginalApk.prepare(info);
-            File directory = new File(info.dataDir, "no_backup/yc_lean");
-            String identity = InstallIdentity.readOrCreate(directory);
-            Field field = Build.class.getField("FINGERPRINT");
-            field.setAccessible(true);
-            field.set(null, identity);
-            if (!identity.equals(Build.FINGERPRINT)) {
-                throw new IllegalStateException("Fingerprint assignment was not applied");
-            }
             identityPrepared = true;
-            Log.i("YCLean", "Identity applied before original loader");
+            Log.i("YCLean", "Original image prepared; identity rules run after protected loading");
         } catch (Exception failure) {
             Log.w("YCLean", "Identity initialization skipped", failure);
         } catch (LinkageError failure) {
@@ -113,6 +103,9 @@ public final class EarlyFactory extends AppComponentFactory {
 
     @Override public ContentProvider instantiateProvider(ClassLoader loader, String name)
             throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+        // Our classes belong to the installed container's loader. The original
+        // factory may replace the app loader while unpacking protected code.
+        if (IdentityProvider.class.getName().equals(name)) return new IdentityProvider();
         return original().instantiateProvider(loader, name);
     }
 }

@@ -23,6 +23,7 @@ final class OriginalApk {
     private static final String SHA256 = "5629c0dc0dc0b631f09bd21f81a5d671e64e6d516cb4a28a9b9fb45a2971b231";
     private static final long SIZE = 34006186L;
     private static volatile String originalPath;
+    private static volatile String installedPath;
 
     private OriginalApk() {}
 
@@ -31,11 +32,26 @@ final class OriginalApk {
             throw new IOException("Application paths unavailable");
         }
         if (originalPath == null) {
+            installedPath = info.sourceDir;
             prepareExternalImage(info);
         }
         apply(info);
         updateBoundApplication();
         Log.i("YCLean", "Original signed image supplied to protected loader");
+    }
+
+    static File container(Context context) throws IOException {
+        if (installedPath != null) return new File(installedPath);
+        // nativeLibraryDir is not redirected to the embedded original image.
+        String nativeDirectory = context.getApplicationInfo().nativeLibraryDir;
+        if (nativeDirectory != null) {
+            File parent = new File(nativeDirectory).getParentFile();
+            if (parent != null && parent.getParentFile() != null) {
+                File candidate = new File(parent.getParentFile(), "base.apk");
+                if (candidate.isFile()) return candidate;
+            }
+        }
+        throw new IOException("Installed bootstrap container unavailable");
     }
 
     private static void prepareExternalImage(ApplicationInfo info) throws Exception {
