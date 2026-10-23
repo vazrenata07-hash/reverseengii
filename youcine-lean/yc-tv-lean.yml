@@ -31,12 +31,11 @@ jobs:
       - name: Install native build tools
         run: |
           python3 -m pip install cmake==3.31.6 ninja==1.11.1.3
-          sdkmanager 'ndk;26.3.11579264'
+          curl -fL --retry 3 -o "$RUNNER_TEMP/ndk.zip" https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q "$RUNNER_TEMP/ndk.zip" -d "$RUNNER_TEMP"
       - name: Cross-compile native helpers (no execution tests)
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.3.11579264
         run: |
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/26.3.11579264"
+          export ANDROID_NDK_HOME="$RUNNER_TEMP/android-ndk-r26d"
           python3 youcine-lean/build_native.py
       - name: Compile, package and sign
         run: python3 youcine-lean/build.py
