@@ -1,47 +1,50 @@
-# YC TV 1.15.4 — inicializador Java próprio, v1 experimental
+# YC TV 1.15.4 — Lean v2 experimental
 
 Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório.
+Implementação própria em Java, sem reutilizar o carregador do mod TV.
+Ambientes de interesse: Android 9 e 10, incluindo MEmu Android 9 x64.
 
-O inicializador novo contém duas classes Java e não contém bibliotecas nativas
-próprias. A referência técnica é a geração de `fingerprint` com
-`UUID.randomUUID()` nos construtores das classes `PreInstallAuthBean` e
-`SnTokenBean` do mod TV 1.15.1 fornecido para análise. O código dessas classes
-e do carregador do mod não foi reutilizado.
+## Mudança na v2
 
-## Comportamento implementado
+O log fornecido pelo usuário após executar a v1 registrou 1.608 encerramentos
+de processo por sinal 9 e nenhum registro `YCLean`. A v1 só inicializava por
+um provider, depois da etapa que está encerrando o processo. O log não revela
+quem envia o sinal nem comprova a causa do encerramento.
 
-- Cria uma identidade UUID v4 nos dados privados do aplicativo.
-- Conserva essa identidade nas aberturas seguintes.
-- Limpar todos os dados do aplicativo remove essa identidade; a próxima
-  inicialização cria outra. Limpar apenas o cache não a remove.
-- Aplica a identidade a `Build.FINGERPRINT` somente no processo do aplicativo,
-  antes de `Application.onCreate`, por um `ContentProvider` privado.
-- Se a rotina falhar, registra a falha e permite a inicialização original.
+A v2 troca o ponto de entrada para `EarlyFactory`, antes de delegar à fábrica
+original `s.h.e.l.l.A`. No Android 9, obtém `ApplicationInfo` do processo
+vinculado; no Android 10, recebe essa informação em `instantiateClassLoader`.
 
-Persistência com bloqueio de arquivo sem espera, escrita temporária, sincronização
-e renomeação. Sem rede, permissões extras, tela adicional ou serviços próprios.
-O empacotamento adiciona o provider e um DEX ao APK original, preservando o
-conteúdo dos outros arquivos e recompilando somente o código novo.
+- Identidade UUID v4 persistente em `no_backup/yc_lean/identity-v1`.
+- A identidade é aplicada a `Build.FINGERPRINT` antes da delegação original.
+- Limpar todos os dados elimina a identidade; limpar só o cache não elimina.
+- Adaptador local de `PackageInfo` usa o certificado público extraído do APK
+  base nas consultas sobre o próprio pacote. Inclui `signatures` e, quando
+  acessível, `SigningInfo`. A adaptação é uma tentativa de compatibilidade com
+  a nova assinatura; o log não comprovou que a assinatura causa o sinal 9.
+- As etapas anteriores à delegação registram mensagens `YCLean`, inclusive
+  quando uma operação opcional não pode ser aplicada.
 
-## Estado da entrega
+Os componentes continuam sendo criados pela fábrica original. O conteúdo
+dos demais arquivos do APK é preservado. Não há bibliotecas nativas próprias,
+serviços, telas ou permissões novas. O antigo provider da v1 foi removido.
 
-Protótipo compilado, não executado. Por solicitação do usuário, não foram
-executados testes de abertura, de trial ou de compatibilidade.
+## Limites técnicos e estado
 
-A atribuição em `Build.FINGERPRINT` é uma estratégia nova de integração. Não foi
-confirmado que os construtores protegidos da versão 1.15.4 consultem esse campo
-nesse ponto, nem que o servidor conceda outro trial. Não é uma reprodução
-comprovada de todo o comportamento do mod.
+Compilado e publicado, sem testes executados pelo agente, conforme solicitado.
+O usuário realiza os testes nos dispositivos. A correção do encerramento e a
+renovação do trial não estão confirmadas.
 
-O carregador protegido Ijiami original continua presente e executa antes do
-provider. Esta implementação não corrige falhas anteriores à criação do
-provider e não contorna verificações da assinatura original. O APK gerado usa
-uma assinatura de desenvolvimento diferente da assinatura do original; não
-pode ser instalado como atualização dele.
+A referência concreta do mod é o uso de `UUID.randomUUID()` no fingerprint
+dos construtores de `PreInstallAuthBean` e `SnTokenBean`. Não foi confirmado
+que a versão protegida 1.15.4 utilize o campo nas mesmas condições. A identidade
+local nova não garante a concessão de trial pelo servidor.
 
-O código novo é Java e não depende de ARM ou x86. As bibliotecas originais do
-player continuam sendo ARM de 32 e 64 bits; um emulador x86_64 precisa de
-tradução ARM compatível. Não foi acrescentado um player x86_64.
+O adaptador atua em objetos Java retornados por `PackageInfo.CREATOR`; não
+altera o certificado registrado pelo Android nem a verificação direta do
+arquivo APK. O carregador protegido original e as bibliotecas ARM do player
+permanecem. O MEmu precisa de tradução ARM compatível. O APK recomposto tem
+assinatura de desenvolvimento e não instala como atualização do original.
 
 ## Compilar
 
@@ -51,10 +54,9 @@ Linux, Python 3.11+ e JDK 17 ou 21:
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v1.apk`. O script baixa as ferramentas e o APK
-base, confere os hashes dos insumos, compila o código, empacota e assina. Não
-abre o aplicativo e não executa testes. A checagem feita pelo assinador faz
-parte da geração do APK.
+Saída: `build/yc-tv-1.15.4-lean-v2.apk`. O script baixa as ferramentas e o APK
+base, confere os hashes dos insumos, compila, empacota e assina. Não executa
+o aplicativo nem testes. A verificação do assinador faz parte da geração.
 
 O workflow `YC TV Lean Build` publica APK e fontes na release
-`yc-tv-1.15.4-lean-v1`.
+`yc-tv-1.15.4-lean-v2`.

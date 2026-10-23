@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add the bootstrap DEX and provider without recompiling the application's resources."""
+"""Add the bootstrap DEX and early factory without recompiling resources."""
 import argparse
 import copy
 import re
@@ -9,8 +9,7 @@ from pathlib import Path
 
 NONE = 0xFFFFFFFF
 ANDROID = "http://schemas.android.com/apk/res/android"
-PROVIDER = "org.yc.lean.IdentityProvider"
-AUTHORITY = "com.world.youcinetv.yc_lean.init"
+FACTORY = "org.yc.lean.EarlyFactory"
 
 
 def chunks(data, offset=8):
@@ -76,49 +75,26 @@ def string_pool(pool, additions):
 def patch_manifest(manifest):
     parts = list(chunks(manifest))
     pool_index = next(i for i, part in enumerate(parts) if part[0] == 1)
-    attrs = {"name": 0x01010003, "exported": 0x01010010,
-             "authorities": 0x01010018, "initOrder": 0x0101001A}
-    pool, strings = string_pool(parts[pool_index][2],
-        [ANDROID, "provider", PROVIDER, AUTHORITY] + list(attrs))
-    ids = {text: strings.index(text) for text in [ANDROID, "provider", PROVIDER, AUTHORITY] + list(attrs)}
+    pool, strings = string_pool(parts[pool_index][2], [FACTORY])
     parts[pool_index] = (1, struct.unpack_from("<H", pool, 2)[0], pool)
-    map_index = next(i for i, part in enumerate(parts) if part[0] == 0x180)
-    old_map = parts[map_index][2]
-    resources = list(struct.unpack_from("<%dI" % ((len(old_map) - 8) // 4), old_map, 8))
-    resources += [0] * (len(strings) - len(resources))
-    for text, resource in attrs.items():
-        existing = resources[ids[text]]
-        if existing not in (0, resource):
-            raise ValueError("Conflicting Android attribute resource ID")
-        resources[ids[text]] = resource
-    resource_map = struct.pack("<HHI", 0x180, 8, 8 + len(resources) * 4)
-    resource_map += struct.pack("<%dI" % len(resources), *resources)
-    parts[map_index] = (0x180, 8, resource_map)
-
-    def attribute(name, kind, value):
-        return struct.pack("<IIIHBBI", ids[ANDROID], ids[name],
-                           value if kind == 3 else NONE, 8, 0, kind, value)
-
-    attributes = b"".join([
-        attribute("name", 3, ids[PROVIDER]),
-        attribute("exported", 0x12, 0),
-        attribute("authorities", 3, ids[AUTHORITY]),
-        attribute("initOrder", 0x10, 2147483647),
-    ])
-    start = struct.pack("<HHIII", 0x102, 16, 36 + len(attributes), 0, NONE)
-    start += struct.pack("<II6H", NONE, ids["provider"], 20, 20, 4, 0, 0, 0) + attributes
-    end = struct.pack("<HHIIIII", 0x103, 16, 24, 0, NONE, NONE, ids["provider"])
+    factory_index = strings.index(FACTORY)
+    changed = False
     result = bytearray(manifest[:8])
-    inserted = False
-    for kind, _, part in parts:
-        if kind == 0x103 and strings[struct.unpack_from("<I", part, 20)[0]] == "application":
-            if inserted:
-                raise ValueError("More than one application element")
-            result.extend(start + end)
-            inserted = True
+    for kind, _, original in parts:
+        part = bytearray(original)
+        if kind == 0x102 and strings[struct.unpack_from("<I", part, 20)[0]] == "application":
+            attribute_start, attribute_size, count = struct.unpack_from("<3H", part, 24)
+            for index in range(count):
+                at = 16 + attribute_start + index * attribute_size
+                namespace, name = struct.unpack_from("<II", part, at)
+                if namespace != NONE and strings[namespace] == ANDROID and strings[name] == "appComponentFactory":
+                    struct.pack_into("<I", part, at + 8, factory_index)
+                    part[at + 15] = 3
+                    struct.pack_into("<I", part, at + 16, factory_index)
+                    changed = True
         result.extend(part)
-    if not inserted:
-        raise ValueError("Application element not found")
+    if not changed:
+        raise ValueError("Original appComponentFactory attribute not found")
     struct.pack_into("<I", result, 4, len(result))
     return bytes(result)
 
@@ -135,7 +111,7 @@ def main():
         names = source.namelist()
         if len(names) != len(set(names)):
             raise ValueError("Duplicate APK entries are not supported")
-        if PROVIDER.encode() in source.read("AndroidManifest.xml"):
+        if FACTORY.encode("utf-16-le") in source.read("AndroidManifest.xml") or FACTORY.encode() in source.read("AndroidManifest.xml"):
             raise ValueError("Use the original APK, not a previous bootstrap build")
         indexes = [1]
         for name in names:

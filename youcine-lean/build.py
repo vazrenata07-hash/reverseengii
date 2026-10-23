@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 TOOLS = BUILD / "tools"
-ARTIFACT = "yc-tv-1.15.4-lean-v1"
+ARTIFACT = "yc-tv-1.15.4-lean-v2"
 DOWNLOADS = {
     "original.apk": (
         "https://github.com/vazrenata07-hash/reverseengii/releases/download/2.01/yc_1.15.4_ycsite.apk",
@@ -51,8 +51,10 @@ def main():
 
     classes = BUILD / "classes"
     dex = BUILD / "dex"
-    classes.mkdir(exist_ok=True)
-    dex.mkdir(exist_ok=True)
+    for directory in (classes, dex):
+        if directory.exists():
+            shutil.rmtree(directory)
+        directory.mkdir()
     sources = sorted((ROOT / "src").rglob("*.java"))
     run("java", "com.sun.tools.javac.Main", "-source", "8", "-target", "8",
         "-Xlint:-options", "-bootclasspath", TOOLS / "android-34.jar",
