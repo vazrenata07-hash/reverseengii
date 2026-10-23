@@ -1,0 +1,51 @@
+name: YC Identity Diagnostic Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'youcine-diagnostico/Diagnosticar-Rotina-YouCine.ps1'
+      - 'youcine-diagnostico/Diagnosticar-Rotina-YouCine.cmd'
+      - 'youcine-diagnostico/ROTINA.md'
+      - '.github/workflows/yc-identity-diagnostic.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yc-identity-diagnostic-package
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package collector without running it
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import hashlib
+          root = Path('youcine-diagnostico')
+          output = root / 'build-identity'
+          output.mkdir(exist_ok=True)
+          with ZipFile(output / 'youcine-diagnostico-rotina-v1.zip', 'w', ZIP_DEFLATED) as archive:
+              for name in ('Diagnosticar-Rotina-YouCine.ps1', 'Diagnosticar-Rotina-YouCine.cmd', 'ROTINA.md'):
+                  content = (root / name).read_text(encoding='utf-8')
+                  archive.writestr(name, content.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
+          apk = output / 'youcine-diagnostico-rotina-v1.zip'
+          (output / 'SHA256SUMS.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest() + '  ' + apk.name + '\n')
+          PY
+      - name: Publish collector
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag=youcine-identity-diagnostic-v1
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title 'YouCine - Diagnostico da rotina v3.3.1' --notes-file youcine-diagnostico/ROTINA.md
+          fi
+          gh release upload "$tag" youcine-diagnostico/build-identity/youcine-diagnostico-rotina-v1.zip youcine-diagnostico/build-identity/SHA256SUMS.txt --clobber
