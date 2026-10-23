@@ -1,4 +1,19 @@
-# YC TV 1.15.4 — Lean v3.3 experimental
+# YC TV 1.15.4 — Lean v3.3.1 experimental
+
+## Correcao v3.3.1
+
+O log fornecido apos a v3.3 registra duas vezes `ART symbols unavailable;
+identity rules disabled`. Isso confirma que o auxiliar nativo carregou mas
+desativou a rotina antes de instalar os callbacks. O log antigo nao distinguia
+localizacao da biblioteca, abertura do ELF e leitura dos simbolos.
+
+A v3.3.1 acrescenta descoberta de libart pelos mapas do proprio processo,
+com calculo do load bias pelos segmentos PT_LOAD e verificacao da arquitetura
+ELF. Mantem dl_iterate_phdr como outra origem; namespaces do linker podem
+restringir sua enumeracao. Registra separadamente candidatos encontrados,
+falha de abertura/leitura, ABI divergente e quantidade de simbolos extraidos.
+O log recebido comprova a etapa desativada, mas nao identifica sozinho qual
+das subetapas falhou. A abertura externa do original da v3.2 e preservada.
 
 Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório. Android 9/10.
 O usuário confirmou que a v3.2 abriu, mas sua rotina de identidade não teve o
@@ -78,9 +93,9 @@ python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.3.apk`. O workflow `YC TV Lean Build`
+Saída: `build/yc-tv-1.15.4-lean-v3.3.1.apk`. O workflow `YC TV Lean Build`
 compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.3`.
+fontes na release `yc-tv-1.15.4-lean-v3.3.1`.
 
 ## Dependências e fontes
 
