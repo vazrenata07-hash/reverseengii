@@ -1,5 +1,6 @@
 package org.yc.lean;
 
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
@@ -30,23 +31,57 @@ final class OriginalApk {
             throw new IOException("Application paths unavailable");
         }
         if (originalPath == null) {
-            File directory = new File(info.dataDir, "no_backup/yc_lean");
-            if (!directory.isDirectory() && !directory.mkdirs()) {
-                throw new IOException("Cannot create original image directory");
-            }
-            File image = new File(directory, "original-1.15.4-5629c0dc.apk");
-            if (!validImage(image)) extract(new File(info.sourceDir), directory, image);
-            // The native loader checks readlink(/proc/self/fd/<opened APK>)
-            // against sourceDir. Absolute paths preserve Android's /data/user/0
-            // alias, whereas the kernel can report /data/data for that file.
-            // Supply the same spelling the kernel uses for the opened image.
-            originalPath = kernelPath(image);
-            Log.i("YCLean", "Original image path normalized: "
-                    + !image.getAbsolutePath().equals(originalPath));
+            prepareExternalImage(info);
         }
         apply(info);
         updateBoundApplication();
         Log.i("YCLean", "Original signed image supplied to protected loader");
+    }
+
+    private static void prepareExternalImage(ApplicationInfo info) throws Exception {
+        // Android 9/10 permit the app's own external files without a storage
+        // permission dialog. Ask Context to create the correct app directories.
+        File[] directories = earlyContext().getExternalFilesDirs("yc_lean");
+        Exception lastFailure = null;
+        for (File directory : directories) {
+            if (directory == null) continue;
+            try {
+                if (!directory.isDirectory() && !directory.mkdirs()) {
+                    throw new IOException("Cannot create external original image directory");
+                }
+                File image = new File(directory, "original-1.15.4-5629c0dc.apk");
+                if (!validImage(image)) extract(new File(info.sourceDir), directory, image);
+                String path = kernelPath(image);
+                // Original libexec+0x48d47 rejects this layout, independently
+                // of the image's valid signature and normalized spelling.
+                if (path.startsWith("/data/") && path.contains("/" + PACKAGE + "/")) {
+                    throw new IOException("Original image path matches loader's rejected layout");
+                }
+                originalPath = path;
+                Log.i("YCLean", "Original image location: app-specific external");
+                Log.i("YCLean", "Original image path normalized: "
+                        + !image.getAbsolutePath().equals(path));
+                return;
+            } catch (Exception failure) {
+                lastFailure = failure;
+                Log.w("YCLean", "External original image location unavailable", failure);
+            }
+        }
+        throw new IOException("No usable app-specific external image directory", lastFailure);
+    }
+
+    private static Context earlyContext() throws Exception {
+        Class<?> threadType = Class.forName("android.app.ActivityThread");
+        Method current = threadType.getDeclaredMethod("currentActivityThread");
+        current.setAccessible(true);
+        Object thread = current.invoke(null);
+        Object bound = field(threadType, "mBoundApplication").get(thread);
+        Object loaded = field(bound.getClass(), "info").get(bound);
+        Class<?> contextType = Class.forName("android.app.ContextImpl");
+        Method create = contextType.getDeclaredMethod("createAppContext", threadType,
+                Class.forName("android.app.LoadedApk"));
+        create.setAccessible(true);
+        return (Context) create.invoke(null, thread, loaded);
     }
 
     private static String kernelPath(File image) throws Exception {

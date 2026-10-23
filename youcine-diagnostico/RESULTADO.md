@@ -162,3 +162,51 @@ A amostra deve ser correlacionada com o TID emissor no ftrace. Esse método
 não garante que o ramo observado use a espera, ou que as permissões permitam
 as leituras. Compilado e publicado sem execução ou testes pelo agente.
 Nenhum APK novo foi gerado com uma suposta correção de causa ainda desconhecida.
+
+
+## Coleta da v3.1 — 20261023-172019
+
+### Captura passiva obtida
+
+- Leituras sem recusas de permissão; `passive_samples=5`.
+- Thread 27664: pausa de um segundo em `libexec+0x38d29`, retorno em `+0x5d5f0`.
+  A mesma thread emite `kill(0, 9)` no ftrace. O retorno está dentro da função
+  de monitoramento `+0x5d560`.
+- Thread 27666: pausa de um segundo, retorno em `+0x5d7a5`, em outro monitor.
+- Thread 27660: pausa de um segundo, retorno em `+0x6d85f`, no ramo da rotina
+  `+0x6d830` que recebe resultado falso. A pilha também contém candidatos a
+  retornos em `+0x48d94` e `+0x48c10`.
+- Os três retornos imediatos têm `verified_direct_call=1`: o opcode anterior
+  ao endereço de retorno chama a função de espera `+0x38ce0`.
+- Os demais ponteiros da pilha continuam sendo candidatos, não uma pilha
+  desenrolada. A correlação principal usa o TID emissor, sem presumir que o
+  clock local do ftrace seja idêntico ao CLOCK_MONOTONIC do observador.
+
+### Condição identificada no código
+
+Na função `+0x48c10`, a chamada a `+0x49830` verifica certificados por
+`java/util/jar/JarFile`, lendo `AndroidManifest.xml`, seus certificados e os
+bytes codificados. As constantes foram recuperadas por decodificação estática
+das rotinas de inicialização de dados do ELF, sem executar o app.
+
+Depois dessa verificação, `+0x48d31` monta `/%s/` com o nome do pacote.
+`+0x48d47..+0x48d80` compara o início do caminho com `/data/` e busca
+`/com.world.youcinetv/` no caminho. A combinação positiva zera o campo de
+caminho, define resultado falso e chama o callback de encerramento. A v3.1
+fornece exatamente um caminho que satisfaz esse predicado, dentro dos seus
+dados internos. As coletas anteriores e o código de preparação confirmam
+esse layout.
+
+A amostra em `+0x6d85f` é compatível com esse caminho de falha, mas os argumentos
+e o resultado da verificação de certificados não foram registrados. Portanto,
+a rejeição do layout é uma inconsistência concreta a corrigir, sem afirmar
+que seja a única condição ativada ou que as outras verificações passarão.
+
+### Implementação da v3.2
+
+A imagem original é preparada em diretórios externos específicos do app,
+obtidos via Context, mantendo a normalização pelo descritor e a conferência
+de tamanho/SHA-256. O código verifica que o caminho não satisfaz o layout
+rejeitado. Nenhuma biblioteca nativa foi alterada e nenhuma chamada de kill
+foi bloqueada. Compilação e publicação; testes de execução ficam com o usuário.
+Nenhuma coleta bruta do dispositivo foi publicada.

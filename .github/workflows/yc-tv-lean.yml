@@ -36,7 +36,7 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile, ZIP_DEFLATED
           root = Path('youcine-lean')
-          with ZipFile(root / 'build/yc-tv-lean-v3.1-source.zip', 'w', ZIP_DEFLATED) as z:
+          with ZipFile(root / 'build/yc-tv-lean-v3.2-source.zip', 'w', ZIP_DEFLATED) as z:
               for p in sorted(root.rglob('*')):
                   if p.is_file() and 'build' not in p.relative_to(root).parts and '__pycache__' not in p.parts:
                       z.write(p, p.as_posix())
@@ -46,8 +46,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          tag=yc-tv-1.15.4-lean-v3.1
+          tag=yc-tv-1.15.4-lean-v3.2
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YC TV 1.15.4 — Lean v3.1 experimental' --notes-file youcine-lean/README.md
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YC TV 1.15.4 — Lean v3.2 experimental' --notes-file youcine-lean/README.md
           fi
-          gh release upload "$tag" youcine-lean/build/yc-tv-1.15.4-lean-v3.1.apk youcine-lean/build/SHA256SUMS.txt youcine-lean/build/yc-tv-lean-v3.1-source.zip --clobber
+          gh release upload "$tag" youcine-lean/build/yc-tv-1.15.4-lean-v3.2.apk youcine-lean/build/SHA256SUMS.txt youcine-lean/build/yc-tv-lean-v3.2-source.zip --clobber
