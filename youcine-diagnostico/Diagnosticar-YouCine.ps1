@@ -2,10 +2,12 @@ param(
     [string]$Adb = 'C:\Program Files\Microvirt\MEmu\adb.exe',
     [string]$Serial = '127.0.0.1:21503',
     [ValidateRange(5, 30)][int]$Seconds = 12,
-    [switch]$NativeCaller
+    [switch]$NativeCaller,
+    [switch]$PassiveNative
 )
 
 $ErrorActionPreference = 'Stop'
+if ($NativeCaller -and $PassiveNative) { throw 'Use apenas -PassiveNative ou -NativeCaller.' }
 if (-not (Test-Path -LiteralPath $Adb)) { throw "ADB nao encontrado: $Adb" }
 if ($Serial -notmatch '^[A-Za-z0-9_.:-]+$') { throw 'Serial ADB invalido.' }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -16,6 +18,7 @@ $remoteDir = "/data/local/tmp/ycdiag-$stamp"
 $remoteScript = "/data/local/tmp/ycdiag-$stamp.sh"
 $collectorPath = Join-Path $outDir 'collector.sh'
 $remoteHelper = ''
+$nativeMode = ''
 
 function Invoke-AdbChecked {
     param([string[]]$Arguments)
@@ -29,6 +32,7 @@ $collector = @'
 OUT="$1"
 DURATION="$2"
 NATIVE_HELPER="$3"
+NATIVE_MODE="$4"
 PKG=com.world.youcinetv
 ACT=com.interactive.brasiliptv.ui.activity.WelcomeActivity
 umask 022
@@ -78,7 +82,7 @@ trap finish EXIT
 trap 'exit 130' INT TERM
 
 {
-    echo 'collector_version=3-native-ptrace'
+    echo 'collector_version=4-passive-native'
     date
     id
     uname -a
@@ -171,11 +175,13 @@ LOGPID=$!
 am force-stop "$PKG" > "$OUT/start.txt" 2>&1
 if [ -n "$NATIVE_HELPER" ]; then
     if [ "$(id -u)" = 0 ] && [ "$(uname -m)" = x86_64 ] && [ -x "$NATIVE_HELPER" ]; then
-        "$NATIVE_HELPER" "$PKG" "$OUT" "$DURATION" > "$OUT/native-caller.txt" 2>&1 &
+        native_log="$OUT/native-caller.txt"
+        [ "$NATIVE_MODE" = passive ] && native_log="$OUT/native-samples.txt"
+        "$NATIVE_HELPER" "$PKG" "$OUT" "$DURATION" > "$native_log" 2>&1 &
         NATIVE_PID=$!
-        echo 'native_ptrace=requested' >> "$REPORT"
+        echo "native_helper_mode=$NATIVE_MODE requested=true" >> "$REPORT"
     else
-        echo 'native_ptrace=unavailable (requires root, x86_64 and executable helper)' >> "$REPORT"
+        echo "native_helper_mode=$NATIVE_MODE unavailable=true (requires root, x86_64 and executable helper)" >> "$REPORT"
     fi
 fi
 am start -n "$PKG/$ACT" >> "$OUT/start.txt" 2>&1
@@ -204,14 +210,24 @@ Write-Host 'Conectando ao MEmu...'
 & $Adb connect $Serial
 if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel conectar ao MEmu.' }
 Invoke-AdbChecked -Arguments @('get-state')
-if ($NativeCaller) {
+if ($NativeCaller -or $PassiveNative) {
     Write-Host 'Baixando ferramenta nativa x86_64 publicada neste repositorio...'
-    $releaseBase = 'https://github.com/vazrenata07-hash/reverseengii/releases/download/youcine-native-diagnostic-v1'
-    $helperPath = Join-Path $outDir 'yc-syscall-trace-x86_64'
+    if ($PassiveNative) {
+        $nativeMode = 'passive'
+        $releaseTag = 'youcine-native-diagnostic-v2'
+        $helperName = 'yc-native-sample-x86_64'
+    } else {
+        $nativeMode = 'ptrace'
+        $releaseTag = 'youcine-native-diagnostic-v1'
+        $helperName = 'yc-syscall-trace-x86_64'
+    }
+    $releaseBase = "https://github.com/vazrenata07-hash/reverseengii/releases/download/$releaseTag"
+    $helperPath = Join-Path $outDir $helperName
     $checksumPath = Join-Path $outDir 'native-helper-SHA256SUMS.txt'
-    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/yc-syscall-trace-x86_64" -OutFile $helperPath
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/$helperName" -OutFile $helperPath
     Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/SHA256SUMS.txt" -OutFile $checksumPath
-    $expected = [regex]::Match((Get-Content -LiteralPath $checksumPath -Raw), '(?im)^([0-9a-f]{64})\s+\*?yc-syscall-trace-x86_64\s*$')
+    $pattern = '(?im)^([0-9a-f]{64})\s+\*?' + [regex]::Escape($helperName) + '\s*$'
+    $expected = [regex]::Match((Get-Content -LiteralPath $checksumPath -Raw), $pattern)
     if (-not $expected.Success) { throw 'Checksum da ferramenta nativa ausente.' }
     $actual = (Get-FileHash -LiteralPath $helperPath -Algorithm SHA256).Hash
     if ($actual -ne $expected.Groups[1].Value) { throw 'Checksum da ferramenta nativa divergente.' }
@@ -245,13 +261,15 @@ try {
 
 Write-Host "Acesso root: $rootMode"
 Write-Host "Abrindo o aplicativo e coletando por aproximadamente $Seconds segundos..."
-if ($NativeCaller) {
+if ($PassiveNative) {
+    Write-Host 'Coletor v4: leitura passiva de syscall e chamadas de nanosleep, sem anexar debugger.'
+} elseif ($NativeCaller) {
     Write-Host 'Coletor v3: observa syscalls por ptrace e registra IP, registradores e mapas antes de kill.'
 } else {
     Write-Host 'Coletor v3: captura ftrace; use -NativeCaller para observar syscalls por ptrace.'
 }
 Write-Host 'O aplicativo sera encerrado ao final para parar o ciclo de reinicios.'
-$command = "sh $remoteScript $remoteDir $Seconds $remoteHelper"
+$command = "sh $remoteScript $remoteDir $Seconds $remoteHelper $nativeMode"
 if ($rootMode -eq 'su-c') { $command = "su -c '$command'" }
 if ($rootMode -eq 'su-0') { $command = "su 0 $command" }
 Invoke-AdbChecked -Arguments @('shell', $command)
@@ -277,6 +295,13 @@ if ($log) {
 }
 $trace = Get-ChildItem -Path $outDir -Recurse -Filter 'kernel-trace.txt' | Select-Object -First 1
 $native = Get-ChildItem -Path $outDir -Recurse -Filter 'native-caller.txt' | Select-Object -First 1
+$passive = Get-ChildItem -Path $outDir -Recurse -Filter 'native-samples.txt' | Select-Object -First 1
+if ($passive) {
+    $summary.Add('--- Passive native sampler (no ptrace attachment) ---')
+    Get-Content -LiteralPath $passive.FullName | Select-Object -First 240 |
+        ForEach-Object { $summary.Add($_) }
+    $summary.Add('Sleep callers are sampled before termination; correlate the emitting TID with ftrace. Code pointer candidates are not an unwound call stack.')
+}
 if ($native) {
     $summary.Add('--- Native syscall observer (ptrace) ---')
     Get-Content -LiteralPath $native.FullName |

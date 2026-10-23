@@ -16,7 +16,7 @@ condição a acionou. Bloquear todas essas chamadas não constitui diagnóstico.
 No Windows PowerShell, execute:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Diagnosticar-YouCine.ps1 -NativeCaller
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Diagnosticar-YouCine.ps1 -PassiveNative
 ```
 
 Padrões: ADB em `C:\Program Files\Microvirt\MEmu\adb.exe`, instância
@@ -103,3 +103,39 @@ identifica a execução instrumentada; uma verificação de debugger pode mudar
 o ramo observado. Isso deve ser correlacionado com o código, sem assumir que
 qualquer encerramento instrumentado tem a mesma condição da execução normal.
 Nenhum resultado de abertura, compatibilidade ou trial é afirmado nesta entrega.
+
+
+## Coletor v4: amostragem passiva sem anexação
+
+Na coleta `20261023-165910`, o observador ptrace anexou a sete threads,
+mas registrou zero chamadas de encerramento. O app ficou na inicialização
+até o timeout da coleta; não houve SIGKILL na janela capturada. O marcador de
+retorno da fábrica original não apareceu. O fim do observador registrou uma
+thread restante na tentativa de desanexação. Isso não comprova detecção de
+debugger nem identifica a razão da parada na execução instrumentada.
+
+O modo `-PassiveNative` usa a release `youcine-native-diagnostic-v2` e o
+fonte `native-sample.c`. Não anexa com ptrace, não interrompe threads, não
+muda TracerPid e não envia sinais ao aplicativo. Faz amostragem de
+`/proc/<tid>/syscall` e leituras de memória com `process_vm_readv`, com root.
+As permissões de leitura continuam dependendo do kernel; eventuais recusas
+ficam contadas no relatório.
+
+No código recuperado da base TV 1.15.4 x86_64, a função `libexec.so+0x38ce0`
+faz nanosleep; o IP durante a espera é `+0x38d29`, e o endereço de retorno
+fica a 0x38 bytes do SP. Há caminhos de encerramento que chamam essa espera
+antes de kill. Para essa função específica, o observador captura o endereço
+de retorno e verifica se os cinco bytes anteriores são uma chamada direta
+para `+0x38ce0`. A verificação é registrada em `verified_direct_call`.
+
+As demais leituras da pilha são filtradas: apenas candidatos a ponteiros para
+o código do carregador são emitidos. Não são salvos valores brutos da pilha.
+Antes de registrar, o observador relê syscall/IP/SP para descartar amostras
+que mudaram durante a leitura. Os mapas são copiados durante as amostras.
+O endereço observado pertence à espera, não à syscall kill; a correlação da
+thread e do tempo com o ftrace é necessária. Um caminho sem espera ou uma
+leitura não permitida pode impedir a identificação. Não há promessa de que
+esse método forneça, sozinho, a condição exata do encerramento.
+
+O executável passivo foi compilado, sem execução pelo agente. O modo básico
+e o modo opcional antigo `-NativeCaller` permanecem no script para referência.

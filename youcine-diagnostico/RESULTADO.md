@@ -137,3 +137,28 @@ executar as chamadas originais; não constitui uma correção de funcionamento.
 A execução instrumentada deve ser distinguida da normal porque ptrace altera
 TracerPid e temporização. Compilação realizada; testes de execução ficam com
 o usuário. Nenhuma coleta bruta de dispositivo foi publicada.
+
+
+## Coleta da v3.1 — 20261023-165910
+
+- O observador v1 anexou às threads 21433, 21436, 21438, 21439, 21440,
+  21443 e 21444. A captura informou `native_capture_count=0`.
+- O app registrou as etapas Java até delegar a aplicação original.
+- O ActivityManager registrou timeout de abertura; não há evento kill no ftrace
+  desta janela e o resumo conta zero mortes de processo.
+- `cleanup_remaining=1` indica que a tentativa de desanexação não confirmou
+  todas as threads. Não há informação de registradores/eventos suficiente
+  para atribuir a parada a anti-debug ou a um defeito específico do observador.
+- Esta execução não reproduz o encerramento normal anterior, portanto não
+  fornece o endereço ou a condição do SIGKILL que buscamos.
+
+Foi preparado o observador passivo `native-sample.c`, com leituras por
+`/proc/<tid>/syscall` e `process_vm_readv`, sem anexação ptrace. Ele tenta
+capturar a chamada da espera nativa em `libexec.so+0x38ce0`, cujo IP bloqueado
+é `+0x38d29` e cujo retorno está no SP+0x38. Há caminhos de encerramento que
+fazem essa espera antes de emitir o sinal. Uma chamada direta é confirmada
+somente se o opcode e o destino anteriores ao retorno corresponderem à função.
+A amostra deve ser correlacionada com o TID emissor no ftrace. Esse método
+não garante que o ramo observado use a espera, ou que as permissões permitam
+as leituras. Compilado e publicado sem execução ou testes pelo agente.
+Nenhum APK novo foi gerado com uma suposta correção de causa ainda desconhecida.
