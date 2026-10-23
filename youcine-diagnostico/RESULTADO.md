@@ -115,3 +115,25 @@ sua definição; o relatório registra o resultado. Falhas de registro ou ativa�
 são informadas em `environment.txt` e `native-probe-errors.txt`. Nenhum APK,
 proteção, identidade ou biblioteca do aplicativo é alterado pelo coletor.
 A coleta e a execução continuam sendo realizadas pelo usuário.
+
+
+## Coleta da v3.1 — 20261023-164558
+
+- A v3.1 foi executada e normalizou o caminho (`true`).
+- O coletor v2 foi executado, mas informa `native_ip_probe=unavailable`.
+  A condição que impediu a probe é ausência de x86_64 ou de `kprobe_events`
+  gravável; como o mesmo relatório confirma x86_64, falta o segundo requisito.
+  Isso não prova, sozinho, a configuração de compilação do kernel.
+- Ftrace registra `kill(0, 9)` pela thread 17480, seguido da geração do sinal
+  para o processo 17405 e, depois, da limpeza do ActivityManager.
+- Novamente não há endereço de usuário ou SIGSEGV nessa coleta.
+- A rotina nativa que emite o sinal ainda não foi localizada em execução.
+
+Foi preparado um observador estático x86_64, próprio para a coleta por ptrace,
+em `native-caller.c`, e integrado ao script como opção `-NativeCaller`.
+O objetivo é capturar registradores/IP e mapas na entrada da syscall,
+independentemente de kprobes ou desenrolamento de pilha. Ele observa e deixa
+executar as chamadas originais; não constitui uma correção de funcionamento.
+A execução instrumentada deve ser distinguida da normal porque ptrace altera
+TracerPid e temporização. Compilação realizada; testes de execução ficam com
+o usuário. Nenhuma coleta bruta de dispositivo foi publicada.

@@ -1,7 +1,8 @@
 param(
     [string]$Adb = 'C:\Program Files\Microvirt\MEmu\adb.exe',
     [string]$Serial = '127.0.0.1:21503',
-    [ValidateRange(5, 30)][int]$Seconds = 12
+    [ValidateRange(5, 30)][int]$Seconds = 12,
+    [switch]$NativeCaller
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +15,7 @@ $null = New-Item -ItemType Directory -Path $outDir
 $remoteDir = "/data/local/tmp/ycdiag-$stamp"
 $remoteScript = "/data/local/tmp/ycdiag-$stamp.sh"
 $collectorPath = Join-Path $outDir 'collector.sh'
+$remoteHelper = ''
 
 function Invoke-AdbChecked {
     param([string[]]$Arguments)
@@ -26,6 +28,7 @@ $collector = @'
 #!/system/bin/sh
 OUT="$1"
 DURATION="$2"
+NATIVE_HELPER="$3"
 PKG=com.world.youcinetv
 ACT=com.interactive.brasiliptv.ui.activity.WelcomeActivity
 umask 022
@@ -35,11 +38,16 @@ TRACE_INSTANCE=
 TRACE_BASE=
 PROBE_GROUP=
 LOGPID=
+NATIVE_PID=
 FINISHED=0
 
 finish() {
     [ "$FINISHED" = 1 ] && return
     FINISHED=1
+    if [ -n "$NATIVE_PID" ]; then
+        kill -TERM "$NATIVE_PID" 2>/dev/null
+        wait "$NATIVE_PID" 2>/dev/null
+    fi
     if [ -n "$TRACE_INSTANCE" ]; then
         echo 0 > "$TRACE_INSTANCE/tracing_on" 2>/dev/null
         cat "$TRACE_INSTANCE/trace" > "$OUT/kernel-trace.txt" 2>/dev/null
@@ -70,7 +78,7 @@ trap finish EXIT
 trap 'exit 130' INT TERM
 
 {
-    echo 'collector_version=2-native-ip'
+    echo 'collector_version=3-native-ptrace'
     date
     id
     uname -a
@@ -161,6 +169,15 @@ fi
 logcat -b all -v threadtime -T 1 YCLean:V AndroidRuntime:V libc:V DEBUG:V linker:V ActivityManager:I Zygote:I '*:S' > "$OUT/logcat.txt" 2>&1 &
 LOGPID=$!
 am force-stop "$PKG" > "$OUT/start.txt" 2>&1
+if [ -n "$NATIVE_HELPER" ]; then
+    if [ "$(id -u)" = 0 ] && [ "$(uname -m)" = x86_64 ] && [ -x "$NATIVE_HELPER" ]; then
+        "$NATIVE_HELPER" "$PKG" "$OUT" "$DURATION" > "$OUT/native-caller.txt" 2>&1 &
+        NATIVE_PID=$!
+        echo 'native_ptrace=requested' >> "$REPORT"
+    else
+        echo 'native_ptrace=unavailable (requires root, x86_64 and executable helper)' >> "$REPORT"
+    fi
+fi
 am start -n "$PKG/$ACT" >> "$OUT/start.txt" 2>&1
 END=$(( $(date +%s) + DURATION ))
 while [ "$(date +%s)" -lt "$END" ]; do
@@ -187,6 +204,22 @@ Write-Host 'Conectando ao MEmu...'
 & $Adb connect $Serial
 if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel conectar ao MEmu.' }
 Invoke-AdbChecked -Arguments @('get-state')
+if ($NativeCaller) {
+    Write-Host 'Baixando ferramenta nativa x86_64 publicada neste repositorio...'
+    $releaseBase = 'https://github.com/vazrenata07-hash/reverseengii/releases/download/youcine-native-diagnostic-v1'
+    $helperPath = Join-Path $outDir 'yc-syscall-trace-x86_64'
+    $checksumPath = Join-Path $outDir 'native-helper-SHA256SUMS.txt'
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/yc-syscall-trace-x86_64" -OutFile $helperPath
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/SHA256SUMS.txt" -OutFile $checksumPath
+    $expected = [regex]::Match((Get-Content -LiteralPath $checksumPath -Raw), '(?im)^([0-9a-f]{64})\s+\*?yc-syscall-trace-x86_64\s*$')
+    if (-not $expected.Success) { throw 'Checksum da ferramenta nativa ausente.' }
+    $actual = (Get-FileHash -LiteralPath $helperPath -Algorithm SHA256).Hash
+    if ($actual -ne $expected.Groups[1].Value) { throw 'Checksum da ferramenta nativa divergente.' }
+    $remoteHelper = "/data/local/tmp/yc-native-$stamp"
+    Invoke-AdbChecked -Arguments @('push', $helperPath, $remoteHelper)
+    Invoke-AdbChecked -Arguments @('shell', "chmod 755 $remoteHelper")
+    Remove-Item -LiteralPath $helperPath
+}
 Invoke-AdbChecked -Arguments @('push', $collectorPath, $remoteScript)
 
 $rootMode = 'none'
@@ -212,9 +245,13 @@ try {
 
 Write-Host "Acesso root: $rootMode"
 Write-Host "Abrindo o aplicativo e coletando por aproximadamente $Seconds segundos..."
-Write-Host 'Coletor v2: tenta capturar o endereco de usuario da syscall kill no kernel x86_64.'
+if ($NativeCaller) {
+    Write-Host 'Coletor v3: observa syscalls por ptrace e registra IP, registradores e mapas antes de kill.'
+} else {
+    Write-Host 'Coletor v3: captura ftrace; use -NativeCaller para observar syscalls por ptrace.'
+}
 Write-Host 'O aplicativo sera encerrado ao final para parar o ciclo de reinicios.'
-$command = "sh $remoteScript $remoteDir $Seconds"
+$command = "sh $remoteScript $remoteDir $Seconds $remoteHelper"
 if ($rootMode -eq 'su-c') { $command = "su -c '$command'" }
 if ($rootMode -eq 'su-0') { $command = "su 0 $command" }
 Invoke-AdbChecked -Arguments @('shell', $command)
@@ -239,6 +276,14 @@ if ($log) {
         Group-Object | ForEach-Object { $summary.Add("$($_.Count) x $($_.Name)") }
 }
 $trace = Get-ChildItem -Path $outDir -Recurse -Filter 'kernel-trace.txt' | Select-Object -First 1
+$native = Get-ChildItem -Path $outDir -Recurse -Filter 'native-caller.txt' | Select-Object -First 1
+if ($native) {
+    $summary.Add('--- Native syscall observer (ptrace) ---')
+    Get-Content -LiteralPath $native.FullName |
+        Where-Object { $_ -match 'native_collector|target_pid|native_caller|registers|code address|maps=|native_capture_count|failed|error=|cleanup_remaining' } |
+        Select-Object -First 150 | ForEach-Object { $summary.Add($_) }
+    $summary.Add('Ptrace changes TracerPid and syscall timing. A captured caller identifies this instrumented execution; it does not alone establish the uninstrumented trigger.')
+}
 if ($trace) {
     $summary.Add('--- First native termination events and stack addresses ---')
     $hits = Select-String -LiteralPath $trace.FullName -Pattern 'kill_user|user_ip=|sys_enter_kill|sys_enter_tgkill|sys_kill|sys_tgkill|signal_generate|kill:|tgkill:|user_stack|=>|<-User' |

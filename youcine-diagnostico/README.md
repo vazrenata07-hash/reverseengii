@@ -16,7 +16,7 @@ condição a acionou. Bloquear todas essas chamadas não constitui diagnóstico.
 No Windows PowerShell, execute:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Diagnosticar-YouCine.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Diagnosticar-YouCine.ps1 -NativeCaller
 ```
 
 Padrões: ADB em `C:\Program Files\Microvirt\MEmu\adb.exe`, instância
@@ -44,9 +44,11 @@ versão do Android, identificação/hash do APK e logcat filtrado. O resultado �
 um ZIP na Área de Trabalho. Envie esse ZIP para análise.
 
 Se faltar root ou suporte do kernel, o resumo informa isso. Sem a captura
-nativa, o relatório não promete apontar a causa exata. O script não usa ptrace,
-Frida, hooks de libc ou alterações no carregador. Sua execução pelo usuário
-é a coleta solicitada; o agente não executou testes no dispositivo.
+nativa, o relatório não promete apontar a causa exata. O modo básico não usa
+ptrace. O modo `-NativeCaller`, descrito abaixo, usa ptrace para observar o
+processo. Nenhum modo usa Frida, hooks de libc ou alterações no carregador.
+Sua execução pelo usuário é a coleta solicitada; o agente não executou testes
+no dispositivo.
 
 ## Como o resultado será interpretado
 
@@ -67,3 +69,37 @@ SIGSEGV anterior; uma thread do app emite `kill(0, 9)`. O coletor v2 foi
 preparado para tentar obter o endereço dessa chamada, que ainda falta.
 Não há confirmação da condição que dispara o encerramento. O histórico
 completo das conclusões fica em [RESULTADO.md](RESULTADO.md).
+
+
+## Coletor v3: observador de syscalls por ptrace
+
+A coleta de 23/10/2026, arquivo `20261023-164558`, informa
+`native_ip_probe=unavailable`: não há `kprobe_events` gravável no local
+exposto por esse MEmu. O ftrace confirma o sinal e a thread, mas não registra
+IP de usuário. Repetir essa mesma coleta não obtém o endereço faltante.
+
+Com `-NativeCaller`, o PowerShell baixa o executável estático x86_64 da
+release `youcine-native-diagnostic-v1`, confere seu SHA-256 contra o manifesto
+da release e o envia a `/data/local/tmp`. O código-fonte é `native-caller.c`.
+O workflow compila com GCC e `-static`; não executa a ferramenta ou o app.
+O binário é destinado ao MEmu x86_64 com root já disponível, não a TV Boxes ARM.
+
+Após encerrar a instância anterior do aplicativo, o script inicia o observador
+e abre o app. O observador procura o processo pelo cmdline exato do pacote,
+anexa via `PTRACE_SEIZE` e acompanha threads novas com `PTRACE_O_TRACECLONE`.
+Nos pontos de entrada de `kill`, `tkill`, `tgkill` e `exit_group`, registra o
+IP/SP, argumentos, alguns registradores e 32 bytes de instruções ao redor do
+IP, além do mapa da thread nesse instante. O IP de entrada aponta imediatamente
+após a instrução syscall no Linux x86_64. Não são copiados dados de aplicativo
+ou conteúdo da pilha. Saídas e falhas de anexação ficam em `native-caller.txt`.
+
+A ferramenta não modifica registradores, instruções, retornos ou argumentos,
+não bloqueia a syscall e encaminha os sinais reais. Ao terminar, tenta
+desanexar das threads ainda vivas; não usa `PTRACE_O_EXITKILL`. O script
+encerra o aplicativo ao final da coleta, como nas versões anteriores.
+
+Ptrace altera `TracerPid` e o tempo das syscalls. Assim, um ponto capturado
+identifica a execução instrumentada; uma verificação de debugger pode mudar
+o ramo observado. Isso deve ser correlacionado com o código, sem assumir que
+qualquer encerramento instrumentado tem a mesma condição da execução normal.
+Nenhum resultado de abertura, compatibilidade ou trial é afirmado nesta entrega.

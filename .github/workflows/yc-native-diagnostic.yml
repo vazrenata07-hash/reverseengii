@@ -1,0 +1,39 @@
+name: YC Native Diagnostic Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'youcine-diagnostico/native-caller.c'
+      - '.github/workflows/yc-native-diagnostic.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yc-native-diagnostic-build
+  cancel-in-progress: false
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile static syscall observer
+        run: |
+          mkdir -p youcine-diagnostico/build
+          gcc -std=c11 -O2 -Wall -Wextra -static -s youcine-diagnostico/native-caller.c -o youcine-diagnostico/build/yc-syscall-trace-x86_64
+          cd youcine-diagnostico/build
+          sha256sum yc-syscall-trace-x86_64 > SHA256SUMS.txt
+      - name: Publish diagnostic tool
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag=youcine-native-diagnostic-v1
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YouCine syscall diagnostic v1 — x86_64' --notes-file youcine-diagnostico/README.md
+          fi
+          gh release upload "$tag" youcine-diagnostico/build/yc-syscall-trace-x86_64 youcine-diagnostico/build/SHA256SUMS.txt youcine-diagnostico/native-caller.c youcine-diagnostico/Diagnosticar-YouCine.ps1 --clobber
