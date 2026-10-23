@@ -127,6 +127,8 @@ def main():
                     data = patch_manifest(data)
                 target.writestr(copy.copy(info), data)
             target.writestr(dex_name, args.dex.read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
+            target.writestr("assets/yc_original_1_15_4.apk", args.original.read_bytes(),
+                            compress_type=zipfile.ZIP_STORED)
     print(args.output)
 
 

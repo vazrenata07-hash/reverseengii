@@ -1,50 +1,58 @@
-# YC TV 1.15.4 — Lean v2 experimental
+# YC TV 1.15.4 — Lean v3 experimental
 
 Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório.
-Implementação própria em Java, sem reutilizar o carregador do mod TV.
-Ambientes de interesse: Android 9 e 10, incluindo MEmu Android 9 x64.
+Inicializador próprio em Java para a base TV, voltado a Android 9 e 10.
+O carregador adicionado pelo mod de terceiros não é reutilizado.
 
-## Mudança na v2
+## Correção implementada na v3
 
-O log fornecido pelo usuário após executar a v1 registrou 1.608 encerramentos
-de processo por sinal 9 e nenhum registro `YCLean`. A v1 só inicializava por
-um provider, depois da etapa que está encerrando o processo. O log não revela
-quem envia o sinal nem comprova a causa do encerramento.
+A coleta executada pelo usuário confirmou chamadas `kill(0, 9)` no contexto
+de threads com o nome do aplicativo, antes do encerramento observado pelo
+ActivityManager. As quatro etapas Java da v2 se completam. O rastreamento não
+registrou o endereço de usuário, apesar da opção de userstacktrace habilitada.
+A condição exata que chega ao encerramento nativo ainda não foi identificada.
 
-A v2 troca o ponto de entrada para `EarlyFactory`, antes de delegar à fábrica
-original `s.h.e.l.l.A`. No Android 9, obtém `ApplicationInfo` do processo
-vinculado; no Android 10, recebe essa informação em `instantiateClassLoader`.
+A v3 trata uma limitação concreta da v2: o adaptador Java apresentava o
+certificado original, mas o carregador ainda recebia o arquivo recomposto.
+Agora uma imagem integral, com a assinatura original, acompanha o contêiner.
 
-- Identidade UUID v4 persistente em `no_backup/yc_lean/identity-v1`.
-- A identidade é aplicada a `Build.FINGERPRINT` antes da delegação original.
-- Limpar todos os dados elimina a identidade; limpar só o cache não elimina.
-- Adaptador local de `PackageInfo` usa o certificado público extraído do APK
-  base nas consultas sobre o próprio pacote. Inclui `signatures` e, quando
-  acessível, `SigningInfo`. A adaptação é uma tentativa de compatibilidade com
-  a nova assinatura; o log não comprovou que a assinatura causa o sinal 9.
-- As etapas anteriores à delegação registram mensagens `YCLean`, inclusive
-  quando uma operação opcional não pode ser aplicada.
+1. Extrai a imagem para os dados privados e confere tamanho e SHA-256.
+2. Nas aberturas seguintes, reutiliza a imagem depois de conferir seu hash.
+3. Fornece esse caminho ao `ApplicationInfo` passado ao carregador original.
+4. Adapta `sourceDir`, `publicSourceDir`, `mAppDir` e `mResDir` do processo.
+5. Apresenta o mesmo caminho nas consultas locais de `ApplicationInfo` e
+   `PackageInfo` referentes ao próprio pacote.
+6. Mantém a identidade UUID privada e a aplica a `Build.FINGERPRINT` antes
+   de delegar à fábrica original. Limpar os dados recria essa identidade.
 
-Os componentes continuam sendo criados pela fábrica original. O conteúdo
-dos demais arquivos do APK é preservado. Não há bibliotecas nativas próprias,
-serviços, telas ou permissões novas. O antigo provider da v1 foi removido.
+A cópia original tem SHA-256:
+`5629c0dc0dc0b631f09bd21f81a5d671e64e6d516cb4a28a9b9fb45a2971b231`.
+O certificado público original utilizado pelo adaptador tem SHA-256:
+`0fd3d98319e7dc05830accaedcc9e2af8f3b89234a21a4d4e5ff5e04fecbb2a7`.
 
-## Limites técnicos e estado
+A imagem é gravada por arquivo temporário, sincronizada e renomeada após a
+conferência. A rotina não troca as bibliotecas nativas do original nem bloqueia
+syscalls de encerramento. As mensagens `YCLean` indicam a preparação da imagem,
+a delegação e o retorno da criação do aplicativo original.
 
-Compilado e publicado, sem testes executados pelo agente, conforme solicitado.
-O usuário realiza os testes nos dispositivos. A correção do encerramento e a
-renovação do trial não estão confirmadas.
+## Tamanho e estado da entrega
 
-A referência concreta do mod é o uso de `UUID.randomUUID()` no fingerprint
-dos construtores de `PreInstallAuthBean` e `SnTokenBean`. Não foi confirmado
-que a versão protegida 1.15.4 utilize o campo nas mesmas condições. A identidade
-local nova não garante a concessão de trial pelo servidor.
+O APK inclui a imagem assinada original de aproximadamente 34 MB além do
+contêiner. Por isso a v3 fica próxima de 68 MB. O código novo continua sendo
+Java, sem bibliotecas nativas próprias. Os dados extraídos são apagados pela
+limpeza dos dados do aplicativo.
 
-O adaptador atua em objetos Java retornados por `PackageInfo.CREATOR`; não
-altera o certificado registrado pelo Android nem a verificação direta do
-arquivo APK. O carregador protegido original e as bibliotecas ARM do player
-permanecem. O MEmu precisa de tradução ARM compatível. O APK recomposto tem
-assinatura de desenvolvimento e não instala como atualização do original.
+Compilado e publicado; testes de execução e validação nos dispositivos ficam
+com o usuário, conforme sua solicitação. Não foi confirmado que esta mudança
+elimine o encerramento nativo ou renove o trial. Ela trata a origem do arquivo
+apresentado ao carregador; não constitui prova da condição que causou o sinal.
+
+O certificado realmente registrado pelo Android continua sendo o da nova
+assinatura de desenvolvimento. Não há virtualização completa das verificações
+nativas do sistema. O carregador protegido e o player ARM originais permanecem.
+O MEmu utiliza sua ponte ARM; a presença dela não prova a compatibilidade de
+cada biblioteca. A geração local de outra identidade não garante novo trial
+no servidor.
 
 ## Compilar
 
@@ -54,9 +62,9 @@ Linux, Python 3.11+ e JDK 17 ou 21:
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v2.apk`. O script baixa as ferramentas e o APK
+Saída: `build/yc-tv-1.15.4-lean-v3.apk`. O script baixa as ferramentas e o APK
 base, confere os hashes dos insumos, compila, empacota e assina. Não executa
 o aplicativo nem testes. A verificação do assinador faz parte da geração.
 
 O workflow `YC TV Lean Build` publica APK e fontes na release
-`yc-tv-1.15.4-lean-v2`.
+`yc-tv-1.15.4-lean-v3`.

@@ -19,7 +19,7 @@ public final class EarlyFactory extends AppComponentFactory {
     private boolean identityPrepared;
 
     public EarlyFactory() {
-        Log.i("YCLean", "v2 early factory entered");
+        Log.i("YCLean", "v3 early factory entered");
         SignatureAdapter.install();
     }
 
@@ -42,6 +42,7 @@ public final class EarlyFactory extends AppComponentFactory {
             if (info == null || info.dataDir == null) {
                 throw new IllegalStateException("Application data directory unavailable");
             }
+            OriginalApk.prepare(info);
             File directory = new File(info.dataDir, "no_backup/yc_lean");
             String identity = InstallIdentity.readOrCreate(directory);
             Field field = Build.class.getField("FINGERPRINT");
@@ -81,14 +82,18 @@ public final class EarlyFactory extends AppComponentFactory {
     @Override public ClassLoader instantiateClassLoader(ClassLoader loader, ApplicationInfo info) {
         prepare(info);
         Log.i("YCLean", "Delegating original class loader");
-        return original().instantiateClassLoader(loader, info);
+        ClassLoader result = original().instantiateClassLoader(loader, info);
+        Log.i("YCLean", "Original class loader returned");
+        return result;
     }
 
     @Override public Application instantiateApplication(ClassLoader loader, String name)
             throws InstantiationException, IllegalAccessException, ClassNotFoundException {
         if (!identityPrepared) prepare(boundApplicationInfo());
         Log.i("YCLean", "Delegating original application");
-        return original().instantiateApplication(loader, name);
+        Application result = original().instantiateApplication(loader, name);
+        Log.i("YCLean", "Original application instantiated");
+        return result;
     }
 
     @Override public Activity instantiateActivity(ClassLoader loader, String name, Intent intent)

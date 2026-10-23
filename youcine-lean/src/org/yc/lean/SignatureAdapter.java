@@ -1,6 +1,7 @@
 package org.yc.lean;
 
 import android.content.pm.PackageInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.Signature;
 import android.os.Build;
 import android.os.Parcel;
@@ -26,6 +27,7 @@ final class SignatureAdapter {
                 @Override public PackageInfo createFromParcel(Parcel parcel) {
                     PackageInfo info = source.createFromParcel(parcel);
                     if (info != null && PACKAGE.equals(info.packageName)) {
+                        OriginalApk.apply(info.applicationInfo);
                         if (info.signatures != null) info.signatures = new Signature[] { certificate };
                         if (Build.VERSION.SDK_INT >= 28 && info.signingInfo != null) {
                             signingDetails(info.signingInfo, certificate);
@@ -38,6 +40,7 @@ final class SignatureAdapter {
             Field creator = PackageInfo.class.getDeclaredField("CREATOR");
             creator.setAccessible(true);
             creator.set(null, adapter);
+            installApplicationInfoAdapter();
             clearCreatorCache("mCreators");
             clearCreatorCache("sPairedCreators");
             installed = true;
@@ -46,6 +49,26 @@ final class SignatureAdapter {
             Log.w("YCLean", "Local signature adapter unavailable", failure);
         } catch (LinkageError failure) {
             Log.w("YCLean", "Local signature adapter unsupported", failure);
+        }
+    }
+
+    private static void installApplicationInfoAdapter() {
+        try {
+            final Parcelable.Creator<ApplicationInfo> source = ApplicationInfo.CREATOR;
+            Parcelable.Creator<ApplicationInfo> adapter = new Parcelable.Creator<ApplicationInfo>() {
+                @Override public ApplicationInfo createFromParcel(Parcel parcel) {
+                    ApplicationInfo info = source.createFromParcel(parcel);
+                    OriginalApk.apply(info);
+                    return info;
+                }
+                @Override public ApplicationInfo[] newArray(int size) { return source.newArray(size); }
+            };
+            Field creator = ApplicationInfo.class.getDeclaredField("CREATOR");
+            creator.setAccessible(true);
+            creator.set(null, adapter);
+            Log.i("YCLean", "Local ApplicationInfo source adapter installed");
+        } catch (Exception failure) {
+            Log.w("YCLean", "Local ApplicationInfo source adapter unavailable", failure);
         }
     }
 
