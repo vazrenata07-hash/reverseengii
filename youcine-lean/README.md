@@ -1,10 +1,35 @@
-# YC TV 1.15.4 — Lean v3 experimental
+# YC TV 1.15.4 — Lean v3.1 experimental
 
 Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório.
 Inicializador próprio em Java para a base TV, voltado a Android 9 e 10.
 O carregador adicionado pelo mod de terceiros não é reutilizado.
 
-## Correção implementada na v3
+## Correção implementada na v3.1
+
+A coleta da v3 registra `SIGSEGV`, endereço `0x35f`, antes do retorno da
+fábrica original. O RIP, combinado com os mapas, corresponde a
+`libexec.so + 0x6c34d`: `cmp byte ptr [rax + 0x35f], 0`, com `rax = 0`.
+Esse offset é relativo à base ELF; o `0x3834d` do tombstone é relativo ao
+mapeamento anônimo do código descompactado.
+
+A leitura estática identifica, na chamada anterior, uma rotina que abre a
+imagem indicada, obtém o caminho pelo descritor e o compara com o caminho
+informado. Quando os textos diferem, ela zera a estrutura global. Os mapas
+confirmam o caminho físico `/data/data` para a imagem privada. A v3 usava
+`getAbsolutePath()`, que preserva aliases como `/data/user/0`. A coleta não
+registrou os dois argumentos da comparação; a divergência é a hipótese de
+causa tratada por esta versão, não uma confirmação em execução.
+
+A v3.1 abre o arquivo validado e usa `Os.readlink("/proc/self/fd/" + fd)`
+para definir o caminho fornecido ao carregador e aos adaptadores existentes.
+O descritor é fechado em seguida. Isso evita depender da grafia do diretório
+recebida de `ApplicationInfo.dataDir`. A mensagem de inicialização distingue
+v3.1 e informa se houve normalização do caminho.
+
+Esta revisão altera somente essa resolução de caminho e a identificação da
+versão. Mantém o restante do comportamento da v3. Não altera o binário nativo.
+
+## Preparação implementada na v3
 
 A coleta executada pelo usuário confirmou chamadas `kill(0, 9)` no contexto
 de threads com o nome do aplicativo, antes do encerramento observado pelo
@@ -42,10 +67,10 @@ contêiner. Por isso a v3 fica próxima de 68 MB. O código novo continua sendo
 Java, sem bibliotecas nativas próprias. Os dados extraídos são apagados pela
 limpeza dos dados do aplicativo.
 
-Compilado e publicado; testes de execução e validação nos dispositivos ficam
-com o usuário, conforme sua solicitação. Não foi confirmado que esta mudança
-elimine o encerramento nativo ou renove o trial. Ela trata a origem do arquivo
-apresentado ao carregador; não constitui prova da condição que causou o sinal.
+Compilação e publicação pelo workflow; testes de execução e validação nos
+dispositivos ficam com o usuário, conforme sua solicitação. A v3 sofreu crash
+na coleta enviada. Não foi confirmado que a v3.1 elimine a falha ou renove
+o trial; a revisão corrige a resolução do caminho fornecido ao carregador.
 
 O certificado realmente registrado pelo Android continua sendo o da nova
 assinatura de desenvolvimento. Não há virtualização completa das verificações
@@ -62,9 +87,9 @@ Linux, Python 3.11+ e JDK 17 ou 21:
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.apk`. O script baixa as ferramentas e o APK
+Saída: `build/yc-tv-1.15.4-lean-v3.1.apk`. O script baixa as ferramentas e o APK
 base, confere os hashes dos insumos, compila, empacota e assina. Não executa
 o aplicativo nem testes. A verificação do assinador faz parte da geração.
 
 O workflow `YC TV Lean Build` publica APK e fontes na release
-`yc-tv-1.15.4-lean-v3`.
+`yc-tv-1.15.4-lean-v3.1`.

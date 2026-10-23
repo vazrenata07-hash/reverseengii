@@ -2,6 +2,8 @@ package org.yc.lean;
 
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
+import android.os.ParcelFileDescriptor;
+import android.system.Os;
 import android.util.Log;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,11 +36,28 @@ final class OriginalApk {
             }
             File image = new File(directory, "original-1.15.4-5629c0dc.apk");
             if (!validImage(image)) extract(new File(info.sourceDir), directory, image);
-            originalPath = image.getAbsolutePath();
+            // The native loader checks readlink(/proc/self/fd/<opened APK>)
+            // against sourceDir. Absolute paths preserve Android's /data/user/0
+            // alias, whereas the kernel can report /data/data for that file.
+            // Supply the same spelling the kernel uses for the opened image.
+            originalPath = kernelPath(image);
+            Log.i("YCLean", "Original image path normalized: "
+                    + !image.getAbsolutePath().equals(originalPath));
         }
         apply(info);
         updateBoundApplication();
         Log.i("YCLean", "Original signed image supplied to protected loader");
+    }
+
+    private static String kernelPath(File image) throws Exception {
+        try (ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(
+                image, ParcelFileDescriptor.MODE_READ_ONLY)) {
+            String path = Os.readlink("/proc/self/fd/" + descriptor.getFd());
+            if (!path.startsWith("/") || path.endsWith(" (deleted)")) {
+                throw new IOException("Original image has no stable kernel path");
+            }
+            return path;
+        }
     }
 
     static void apply(ApplicationInfo info) {

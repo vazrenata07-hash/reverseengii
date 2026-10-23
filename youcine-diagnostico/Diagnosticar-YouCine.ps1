@@ -199,7 +199,7 @@ if ($log) {
 $trace = Get-ChildItem -Path $outDir -Recurse -Filter 'kernel-trace.txt' | Select-Object -First 1
 if ($trace) {
     $summary.Add('--- First native termination events and stack addresses ---')
-    $hits = Select-String -LiteralPath $trace.FullName -Pattern 'sys_enter_kill|sys_enter_tgkill|signal_generate|kill:|tgkill:|user_stack|=>|<-User' |
+    $hits = Select-String -LiteralPath $trace.FullName -Pattern 'sys_enter_kill|sys_enter_tgkill|sys_kill|sys_tgkill|signal_generate|kill:|tgkill:|user_stack|=>|<-User' |
         Select-Object -First 120
     foreach ($hit in $hits) { $summary.Add($hit.Line) }
     $summary.Add('The complete kernel trace and process maps are included. Event addresses do not by themselves prove the reason for termination.')

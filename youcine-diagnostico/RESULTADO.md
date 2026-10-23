@@ -1,6 +1,6 @@
 # Resultado das coletas fornecidas pelo usuário
 
-## Confirmado
+## Coletas da v2 — confirmado
 
 - Android 9, API 28, kernel x86_64; acesso root disponível.
 - Pacote selecionado pelo Android como `arm64-v8a` e ponte nativa carregada.
@@ -21,7 +21,7 @@ os mapas coletados não podem ser associados a um endereço específico do sinal
 Os offsets encontrados pela leitura estática não identificam, por si só,
 a chamada executada naquela sessão.
 
-## Conclusão técnica atual
+## Conclusão da v2
 
 Há encerramento deliberado do grupo por uma chamada de usuário durante a
 inicialização original. Não há evidência suficiente para atribuir a condição
@@ -33,3 +33,48 @@ inconsistência entre certificado original apresentado em Java e arquivo
 recomposto entregue na v2. Isso é uma alteração fundamentada nessa limitação,
 mas sua eficácia ainda depende da execução pelo usuário. Não houve teste de
 execução pelo agente. Nenhuma coleta bruta de dispositivo foi publicada.
+
+
+## Coleta da v3 — 20261023-154320
+
+### Confirmado pela coleta
+
+- As etapas Java terminam até `Delegating original application`.
+- O processo sofre `SIGSEGV`, `SEGV_MAPERR`, endereço de falha `0x35f`.
+- Não há evento de `kill` no rastreamento dessa falha.
+- RIP `0x7fd0c063034d`; base da imagem ELF `0x7fd0c05c4000`;
+  offset `libexec.so + 0x6c34d`.
+- O offset `0x3834d` exibido pelo tombstone usa a base do mapeamento anônimo
+  `0x7fd0c05f8000`, não a base ELF.
+- A instrução recuperada do carregador x86_64 original é
+  `cmp byte ptr [rax + 0x35f], 0`, com `rax = 0` nos registradores do crash.
+- O mapa do APK original extraído usa `/data/data`.
+
+### Leitura estática relacionada
+
+A função em `0x6c120` chama, em `0x6c346`, a entrada `+8` da tabela
+instalada no campo `+0x40` da estrutura global. A relocação ELF dessa entrada
+aponta para `0x48dc0`. Essa função inicia verificações em threads e chama
+`0x48950` antes de retornar. Em seguida, `0x6c349` relê a estrutura global
+e `0x6c34d` tenta acessar o campo que provocou a falha.
+
+A rotina `0x48950` abre o caminho indicado, lê o caminho associado ao
+descritor e o compara com o caminho informado. Em `0x48adc`, a divergência
+zera a estrutura global. Essa rotina não emite um sinal nesse ramo; a
+continuação com a estrutura nula explica como um crash pode ocorrer sem
+um evento de `kill` na coleta.
+
+### Correção da inconsistência no inicializador
+
+A v3 fornecia `File.getAbsolutePath()`, que não resolve aliases. Android
+pode informar `/data/user/0` enquanto o kernel retorna `/data/data` para
+o mesmo arquivo. A v3.1 passa a obter o caminho pelo próprio descritor,
+com `Os.readlink("/proc/self/fd/" + fd)`, antes de preencher `sourceDir`.
+
+O trecho nativo e a falha estão identificados. A coleta não captura os
+argumentos efetivos da comparação; portanto, o alias como condição disparada
+nessa execução ainda é inferência. A correção elimina essa inconsistência
+no código novo, sem afirmar que todas as verificações do carregador foram
+satisfeitas. A confirmação da abertura e do trial fica com o usuário.
+Nenhum teste de execução foi realizado pelo agente; nenhuma coleta bruta
+foi publicada.
