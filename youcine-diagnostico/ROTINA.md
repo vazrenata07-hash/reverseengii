@@ -1,7 +1,8 @@
-# Diagnostico da integracao v3.3.1
+# Diagnostico da integracao v3.3.2
 
-Instale a v3.3.1 antes da coleta: ela acrescenta a descoberta do ART pelos
-mapas e mensagens por subetapa para a falha observada na v3.3.
+Instale a v3.3.2 antes da coleta: ela seleciona o auxiliar pela arquitetura
+do executavel da VM e o carrega por um classloader separado. O coletor v2
+registra a ABI carregada, os vinculos JNI e o motor pronto, alem dos callbacks.
 
 Execute `Diagnosticar-Rotina-YouCine.cmd` no Windows ou:
 
@@ -21,7 +22,7 @@ nao capturar as mensagens de inicializacao necessarias.
 
 Inclui:
 
-- Identificacao do APK instalado por SHA-256, comparada a v3.3.1 publicada.
+- Identificacao do APK instalado por SHA-256, comparada a v3.3.2 publicada.
 - Android, ABIs e configuracao da ponte nativa; metadados do pacote e providers.
 - Historico anterior separado dos registros da nova execucao.
 - Logs filtrados YCLean/LSPlant/Dobby e falhas Java/linker/libc.
@@ -47,3 +48,10 @@ carregou, mas nao encontrou os simbolos necessarios e desativou as regras.
 Isso impede atribuir o resultado do VIP a callbacks ativos. O log nao
 discrimina enumeracao, abertura do ELF e leitura dos simbolos; a v3.3.1
 acrescenta descoberta pelos mapas e mensagens dessas subetapas.
+
+A coleta `20261023-181826-899` confirmou depois que a v3.3.1 carregava o
+auxiliar ARM64 por Houdini no processo cujo ART e x86_64. A leitura nativa
+viu apenas 17 simbolos e LSPlant falhou em GetMethodShorty. O ART copiado
+pelo ADB contem esse simbolo. A v3.3.2 corrige a escolha e o namespace do
+auxiliar, preservando o carregamento original do player. O arquivo
+RESULTADO-ROTINA.md do repositorio detalha as evidencias.

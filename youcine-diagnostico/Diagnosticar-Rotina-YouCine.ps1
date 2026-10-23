@@ -1,4 +1,4 @@
-# Coletor de integracao da v3.3.1. Compativel com Windows PowerShell 5.1.
+# Coletor de integracao da v3.3.2. Compativel com Windows PowerShell 5.1.
 # Nao instala APK, nao limpa dados/cache/logcat e nao solicita root.
 param(
     [string]$Adb = '',
@@ -9,7 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $package = 'com.world.youcinetv'
-$expectedSha = '133f1e0acc5e5fe1511a452f2eb612eb06d1c142453cd8bcb87d8afb18c1a22f'
+$expectedSha = '3efe7cdc896828d7489142240e23a5ff9d02624afff10094843325196ad72005'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
 $desktop = [Environment]::GetFolderPath('Desktop')
 $outDir = Join-Path $desktop "youcine-rotina-$stamp"
@@ -112,7 +112,7 @@ try {
         }
     }
     if (-not $script:AdbPath) { throw 'ADB nao encontrado. Execute na pasta do MEmu ou informe -Adb com o caminho de adb.exe.' }
-    Save-Text 'coletor.txt' ("collector=identity-v1`r`nserial=$Serial`r`nadb=$script:AdbPath`r`nseconds=$Seconds`r`nrestart=$(-not $SemReiniciar)`r`nexpected_apk_sha256=$expectedSha`r`n")
+    Save-Text 'coletor.txt' ("collector=identity-v2`r`nserial=$Serial`r`nadb=$script:AdbPath`r`nseconds=$Seconds`r`nrestart=$(-not $SemReiniciar)`r`nexpected_apk_sha256=$expectedSha`r`n")
     Write-Host 'Conectando ao MEmu...'
     $connected = $false
     $connections = [Collections.Generic.List[string]]::new()
@@ -209,16 +209,19 @@ if (Test-Path -LiteralPath $hashPath) {
     if ($match.Success) { $installedHash = $match.Groups[1].Value.ToLowerInvariant() }
 }
 $status = [ordered]@{
-    collector = 'identity-v1'
+    collector = 'identity-v2'
     collection_complete = $complete
     collection_error = $failure
     fresh_marker_seen = $markerSeen
     expected_apk_sha256 = $expectedSha
     installed_apk_sha256 = $installedHash
-    exact_v331_apk_confirmed = ($installedHash -eq $expectedSha)
-    provider_entered = ($fresh -match 'v3\.3(?:\.1)? identity provider entered')
+    exact_v332_apk_confirmed = ($installedHash -eq $expectedSha)
+    provider_entered = ($fresh -match 'v3\.3(?:\.[0-9]+)? identity provider (?:entered|initialized)')
     runtime_ready = ($fresh -match 'ART identity runtime ready=true')
     runtime_failure_reported = ($fresh -match 'ART identity runtime ready=false|ART identity runtime unavailable|ART identity runtime could not load|ART symbols unavailable|ART hook initialization ready=0')
+    helper_abi = ([regex]::Match($fresh, 'ART helper loaded ABI=([^\s]+)').Groups[1].Value)
+    native_bindings_ready = ($fresh -match 'ART native bindings installed ready=1')
+    isolated_loader_ready = ($fresh -match 'ART identity runtime ready=true VM ABI=[^\s]+ loader=isolated')
     art_discovery_reported = ($fresh -match 'ART discovery phdr=')
     art_symbols_parsed = ($fresh -match 'ART symbols parsed=[1-9][0-9]*')
     art_symbols_unavailable = ($fresh -match 'ART symbols unavailable')
@@ -238,12 +241,12 @@ $summary.Add("Coleta completa: $complete")
 $summary.Add("Marcador da execucao encontrado: $markerSeen")
 if ($failure) { $summary.Add("Erro de coleta: $failure") }
 if ($installedHash) {
-    $summary.Add("APK instalado corresponde exatamente a v3.3.1 publicada: $($status.exact_v331_apk_confirmed)")
+    $summary.Add("APK instalado corresponde exatamente a v3.3.2 publicada: $($status.exact_v332_apk_confirmed)")
 } else { $summary.Add('Hash do APK base indisponivel: a versao exata nao foi confirmada.') }
 if (-not $markerSeen) {
     $summary.Add('Nao foi possivel delimitar os logs novos. Os indicadores abaixo nao comprovam falha ou sucesso do app.')
 }
-foreach ($key in @('provider_entered', 'runtime_ready', 'runtime_failure_reported', 'art_discovery_reported', 'art_symbols_parsed', 'art_symbols_unavailable', 'preinstall_hook_installed', 'sntoken_hook_installed', 'preinstall_callback_used', 'sntoken_callback_used', 'properties_hook_installed', 'properties_callback_used', 'constructor_failure_reported', 'properties_failure_reported')) {
+foreach ($key in @('provider_entered', 'runtime_ready', 'runtime_failure_reported', 'helper_abi', 'native_bindings_ready', 'isolated_loader_ready', 'art_discovery_reported', 'art_symbols_parsed', 'art_symbols_unavailable', 'preinstall_hook_installed', 'sntoken_hook_installed', 'preinstall_callback_used', 'sntoken_callback_used', 'properties_hook_installed', 'properties_callback_used', 'constructor_failure_reported', 'properties_failure_reported')) {
     $summary.Add("${key}: $($status[$key])")
 }
 $summary.Add('false significa que o evento nao foi observado nesta janela; nao prova a causa sozinho.')

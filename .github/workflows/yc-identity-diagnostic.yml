@@ -32,11 +32,11 @@ jobs:
           root = Path('youcine-diagnostico')
           output = root / 'build-identity'
           output.mkdir(exist_ok=True)
-          with ZipFile(output / 'youcine-diagnostico-rotina-v1.zip', 'w', ZIP_DEFLATED) as archive:
+          with ZipFile(output / 'youcine-diagnostico-rotina-v2.zip', 'w', ZIP_DEFLATED) as archive:
               for name in ('Diagnosticar-Rotina-YouCine.ps1', 'Diagnosticar-Rotina-YouCine.cmd', 'ROTINA.md'):
                   content = (root / name).read_text(encoding='utf-8')
                   archive.writestr(name, content.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
-          apk = output / 'youcine-diagnostico-rotina-v1.zip'
+          apk = output / 'youcine-diagnostico-rotina-v2.zip'
           (output / 'SHA256SUMS.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest() + '  ' + apk.name + '\n')
           PY
       - name: Publish collector
@@ -44,8 +44,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          tag=youcine-identity-diagnostic-v1
+          tag=youcine-identity-diagnostic-v2
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --title 'YouCine - Diagnostico da rotina v3.3.1' --notes-file youcine-diagnostico/ROTINA.md
+            gh release create "$tag" --target "$GITHUB_SHA" --title 'YouCine - Diagnostico da rotina v3.3.2' --notes-file youcine-diagnostico/ROTINA.md
           fi
-          gh release upload "$tag" youcine-diagnostico/build-identity/youcine-diagnostico-rotina-v1.zip youcine-diagnostico/build-identity/SHA256SUMS.txt --clobber
+          gh release upload "$tag" youcine-diagnostico/build-identity/youcine-diagnostico-rotina-v2.zip youcine-diagnostico/build-identity/SHA256SUMS.txt --clobber
