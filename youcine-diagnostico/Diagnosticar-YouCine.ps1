@@ -32,6 +32,8 @@ umask 022
 mkdir -p "$OUT/maps"
 REPORT="$OUT/environment.txt"
 TRACE_INSTANCE=
+TRACE_BASE=
+PROBE_GROUP=
 LOGPID=
 FINISHED=0
 
@@ -44,7 +46,17 @@ finish() {
         for e in syscalls/sys_enter_kill syscalls/sys_enter_tgkill signal/signal_generate; do
             [ -e "$TRACE_INSTANCE/events/$e/enable" ] && echo 0 > "$TRACE_INSTANCE/events/$e/enable" 2>/dev/null
         done
+        if [ -n "$PROBE_GROUP" ]; then
+            echo 0 > "$TRACE_INSTANCE/events/$PROBE_GROUP/kill_user/enable" 2>/dev/null
+        fi
         rmdir "$TRACE_INSTANCE" 2>/dev/null
+    fi
+    if [ -n "$PROBE_GROUP" ]; then
+        if (echo "-:$PROBE_GROUP/kill_user" >> "$TRACE_BASE/kprobe_events") 2>> "$OUT/native-probe-errors.txt"; then
+            echo 'native_ip_probe_removed=true' >> "$REPORT"
+        else
+            echo 'native_ip_probe_removed=false' >> "$REPORT"
+        fi
     fi
     [ -n "$LOGPID" ] && kill "$LOGPID" 2>/dev/null
     am force-stop "$PKG" > "$OUT/stop.txt" 2>&1
@@ -58,6 +70,7 @@ trap finish EXIT
 trap 'exit 130' INT TERM
 
 {
+    echo 'collector_version=2-native-ip'
     date
     id
     uname -a
@@ -77,7 +90,11 @@ if [ "$(id -u)" = 0 ]; then
     for base in /sys/kernel/tracing /sys/kernel/debug/tracing; do
         if [ -d "$base/instances" ]; then
             instance="$base/instances/ycdiag_$$"
-            if mkdir "$instance" 2>/dev/null; then TRACE_INSTANCE="$instance"; break; fi
+            if mkdir "$instance" 2>/dev/null; then
+                TRACE_INSTANCE="$instance"
+                TRACE_BASE="$base"
+                break
+            fi
         fi
     done
 fi
@@ -110,6 +127,30 @@ if [ -n "$TRACE_INSTANCE" ]; then
             echo "event=$e unavailable" >> "$REPORT"
         fi
     done
+
+    # x86_64 Linux 4.19 syscall wrappers receive struct pt_regs * in %di.
+    # pt_regs: si=104, di=112, ip=128, sp=152. The saved user IP points
+    # immediately after the syscall instruction, even with no unwind data.
+    # This observes syscall entry without attaching a debugger or tracing ptrace.
+    if [ "$(uname -m)" = x86_64 ] && [ -w "$TRACE_BASE/kprobe_events" ]; then
+        group="ycdiag_$$"
+        definition="p:$group/kill_user __x64_sys_kill user_ip=+128(%di):x64 user_sp=+152(%di):x64 target=+112(%di):s64 sig=+104(%di):u32"
+        if (echo "$definition" >> "$TRACE_BASE/kprobe_events") 2>> "$OUT/native-probe-errors.txt"; then
+            PROBE_GROUP="$group"
+            event="$TRACE_INSTANCE/events/$PROBE_GROUP/kill_user"
+            if (echo 'sig == 9 || sig == 6' > "$event/filter" && echo 1 > "$event/enable") 2>> "$OUT/native-probe-errors.txt"; then
+                echo "native_ip_probe=enabled symbol=__x64_sys_kill event=$PROBE_GROUP/kill_user" >> "$REPORT"
+                echo '--- native kill caller ---' >> "$OUT/event-formats.txt"
+                cat "$event/format" >> "$OUT/event-formats.txt"
+            else
+                echo 'native_ip_probe=enable_failed' >> "$REPORT"
+            fi
+        else
+            echo 'native_ip_probe=registration_failed' >> "$REPORT"
+        fi
+    else
+        echo 'native_ip_probe=unavailable (requires x86_64 and writable kprobe_events)' >> "$REPORT"
+    fi
     echo 1 > "$TRACE_INSTANCE/tracing_on" 2>/dev/null
 else
     echo 'trace_instance=unavailable' >> "$REPORT"
@@ -171,6 +212,7 @@ try {
 
 Write-Host "Acesso root: $rootMode"
 Write-Host "Abrindo o aplicativo e coletando por aproximadamente $Seconds segundos..."
+Write-Host 'Coletor v2: tenta capturar o endereco de usuario da syscall kill no kernel x86_64.'
 Write-Host 'O aplicativo sera encerrado ao final para parar o ciclo de reinicios.'
 $command = "sh $remoteScript $remoteDir $Seconds"
 if ($rootMode -eq 'su-c') { $command = "su -c '$command'" }
@@ -199,7 +241,7 @@ if ($log) {
 $trace = Get-ChildItem -Path $outDir -Recurse -Filter 'kernel-trace.txt' | Select-Object -First 1
 if ($trace) {
     $summary.Add('--- First native termination events and stack addresses ---')
-    $hits = Select-String -LiteralPath $trace.FullName -Pattern 'sys_enter_kill|sys_enter_tgkill|sys_kill|sys_tgkill|signal_generate|kill:|tgkill:|user_stack|=>|<-User' |
+    $hits = Select-String -LiteralPath $trace.FullName -Pattern 'kill_user|user_ip=|sys_enter_kill|sys_enter_tgkill|sys_kill|sys_tgkill|signal_generate|kill:|tgkill:|user_stack|=>|<-User' |
         Select-Object -First 120
     foreach ($hit in $hits) { $summary.Add($hit.Line) }
     $summary.Add('The complete kernel trace and process maps are included. Event addresses do not by themselves prove the reason for termination.')

@@ -78,3 +78,40 @@ no código novo, sem afirmar que todas as verificações do carregador foram
 satisfeitas. A confirmação da abertura e do trial fica com o usuário.
 Nenhum teste de execução foi realizado pelo agente; nenhuma coleta bruta
 foi publicada.
+
+
+## Coleta da v3.1 — 20261023-163713
+
+### Confirmado
+
+- A versão executada registra `v3.1 early factory entered`.
+- `Original image path normalized: true`: a alteração de caminho ocorreu.
+- A coleta não registra o SIGSEGV em `+0x6c34d` observado na v3.
+- O ActivityManager registra `Displayed` para WelcomeActivity; isso não prova
+  a conclusão do carregamento protegido, cujo marcador de retorno não aparece.
+- A thread 14383, nome `world.youcinetv`, emite `sys_kill(pid: 0, sig: 9)`.
+- A geração do sinal 9 para o processo do app precede a limpeza posterior
+  do ActivityManager. Há um encerramento do processo nesta coleta.
+- Apesar de `userstacktrace=1`, novamente não há endereços de usuário no trace.
+
+### Limite do diagnóstico atual e coletor v2
+
+O encerramento observado nesta execução é um SIGKILL emitido no contexto do
+app, não o acesso nulo da coleta anterior. A identidade da thread não aponta,
+sozinha, a biblioteca ou a condição de verificação. A causa do SIGKILL continua
+sem identificação. Não foi gerado outro APK com uma correção especulativa.
+
+O coletor v2 mantém as capturas existentes e tenta instalar uma kprobe
+em `__x64_sys_kill`. No ABI x86_64 do kernel 4.19, o primeiro argumento do
+wrapper aponta para `pt_regs`; os campos IP e SP de usuário ficam nos offsets
+128 e 152, e os argumentos de kill nos offsets 112 e 104. A probe captura
+esses valores na entrada da syscall, sem depender de desenrolamento de pilha.
+O IP salvo fica imediatamente após a instrução syscall. Os mapas permitem
+associá-lo à imagem carregada, caso a probe seja suportada e registre o evento.
+
+A probe usa grupo exclusivo por coleta, filtro de sinais 6 e 9 e a instância
+isolada de ftrace. Ao finalizar, o script desativa a captura e tenta remover
+sua definição; o relatório registra o resultado. Falhas de registro ou ativação
+são informadas em `environment.txt` e `native-probe-errors.txt`. Nenhum APK,
+proteção, identidade ou biblioteca do aplicativo é alterado pelo coletor.
+A coleta e a execução continuam sendo realizadas pelo usuário.
