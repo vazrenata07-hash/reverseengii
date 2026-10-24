@@ -11,12 +11,18 @@ import java.io.StringWriter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /** Diagnostic build only: stage journal independent of Java/native log filters. */
 final class StartupTrace {
     enum Mode { OFF, BOUNDARY, RUNTIME, BEANS, PROPERTIES, FULL }
-    static final String VERSION = "v3.4.1-debug";
+    static final String VERSION = "v3.4.2-debug";
     private static Mode mode = Mode.OFF;
     private static String run = "manual";
     private static File directory;
@@ -98,5 +104,48 @@ final class StartupTrace {
             for (String name : names) output.write((name + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
             output.getFD().sync();
         } catch (Exception failure) { failure("class-inventory-write-failed", failure); }
+    }
+
+    static void requestSchema(Class<?> type) {
+        try {
+            JSONObject schema = new JSONObject();
+            schema.put("class", type.getName());
+            JSONArray fields = new JSONArray();
+            for (Field field : type.getDeclaredFields()) {
+                JSONObject item = new JSONObject();
+                item.put("name", field.getName());
+                item.put("type", field.getType().getName());
+                item.put("static", Modifier.isStatic(field.getModifiers()));
+                fields.put(item);
+            }
+            schema.put("fields", fields);
+            JSONArray constructors = new JSONArray();
+            for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+                JSONObject item = new JSONObject();
+                JSONArray parameters = new JSONArray();
+                for (Parameter parameter : constructor.getParameters()) {
+                    JSONObject value = new JSONObject();
+                    value.put("type", parameter.getType().getName());
+                    value.put("name", parameter.getName());
+                    value.put("name_present", parameter.isNamePresent());
+                    parameters.put(value);
+                }
+                item.put("parameters", parameters);
+                item.put("synthetic", constructor.isSynthetic());
+                constructors.put(item);
+            }
+            schema.put("constructors", constructors);
+            for (Annotation annotation : type.getDeclaredAnnotations()) {
+                if (!annotation.annotationType().getName().equals("kotlin.Metadata")) continue;
+                JSONObject metadata = new JSONObject();
+                for (String key : new String[] {"k", "mv", "bv", "d1", "d2", "xs", "xi", "pn"}) {
+                    try { metadata.put(key, JSONObject.wrap(annotation.annotationType().getDeclaredMethod(key).invoke(annotation))); }
+                    catch (ReflectiveOperationException ignored) {}
+                }
+                schema.put("kotlin_metadata", metadata);
+            }
+            event("request-schema", schema.toString());
+        } catch (Exception failure) { failure("request-schema-failed", failure); }
+        catch (LinkageError failure) { failure("request-schema-linkage-failed", failure); }
     }
 }

@@ -1,4 +1,4 @@
-# YC TV 1.15.4 — Lean v3.4.1-debug
+# YC TV 1.15.4 — Lean v3.4.2-debug
 
 ## Build de depuracao por fases
 
@@ -35,6 +35,15 @@ A release inclui simbolos nativos nao removidos e build-identity.json com
 commit e hashes dos auxiliares empacotados, para simbolicar uma pilha nativa
 contra o binario correto. O agente compila, empacota e assina. A execucao
 dos cenarios continua com o usuario.
+
+Atualizacao pelo log v3.3.3: duas inicializacoes falham em i.c.b() no
+construtor de ComponentActivity/WelcomeActivity; a terceira chega a HomeActivity.
+O hook core.request.bean.SnTokenBean e instalado, mas nao ha registro de
+aplicacao de fingerprint; PreInstallAuthBean continua ausente pelo nome
+procurado. O coletor repete cada fase tres vezes. A fase FULL registra tambem
+o formato dos DTO relacionados, incluindo TerminalAuthBean, sem chamar seus
+construtores ou metodos de autenticacao. Os dados ajudam a verificar a mudanca
+do modelo da versao nova sem presumir equivalencia com o mod 1.15.1.
 
 ## Correcao v3.3.3
 
@@ -185,9 +194,9 @@ python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.4.1-debug.apk`. O workflow `YC TV Lean Build`
+Saída: `build/yc-tv-1.15.4-lean-v3.4.2-debug.apk`. O workflow `YC TV Lean Build`
 compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.4.1-debug`.
+fontes na release `yc-tv-1.15.4-lean-v3.4.2-debug`.
 
 ## Dependências e fontes
 

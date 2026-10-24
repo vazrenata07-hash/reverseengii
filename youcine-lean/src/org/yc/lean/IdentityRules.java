@@ -33,6 +33,18 @@ final class IdentityRules {
         try { if (StartupTrace.properties()) installPersistence(context, loader); }
         catch (Exception failure) { NativeRuntime.warn("Properties rule discovery failed", failure); }
         catch (LinkageError failure) { NativeRuntime.warn("Properties rule unavailable", failure); }
+        if (StartupTrace.mode() == StartupTrace.Mode.FULL) {
+            try {
+                int inspected = 0;
+                for (String name : candidates(loader)) {
+                    if (!name.matches("(?i).*(preinstall|sntoken|terminalauth|dcsauth|getauthinfo|authreport|swlauth.*authbean).*")) continue;
+                    try { StartupTrace.requestSchema(Class.forName(name, false, loader)); }
+                    catch (Exception failure) { StartupTrace.failure("request-schema-class-failed", failure); }
+                    catch (LinkageError failure) { StartupTrace.failure("request-schema-class-linkage-failed", failure); }
+                    if (++inspected >= 30) break;
+                }
+            } catch (Exception failure) { StartupTrace.failure("request-schema-enumeration-failed", failure); }
+        }
     }
 
     static synchronized void retryBeans(ClassLoader loader) {
