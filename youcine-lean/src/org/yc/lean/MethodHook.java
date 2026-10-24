@@ -1,6 +1,7 @@
 package org.yc.lean;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -22,14 +23,18 @@ public final class MethodHook {
     private final CountDownLatch installed = new CountDownLatch(1);
     private volatile Method backup;
     private boolean logged;
+    private boolean invocationLogged;
+    private final Field fingerprintField;
 
-    private MethodHook(Member target, int fingerprint, int maskIndex, boolean skip) {
+    private MethodHook(Member target, int fingerprint, int maskIndex, boolean skip) throws Exception {
         this.fingerprint = fingerprint;
         this.maskIndex = maskIndex;
         this.maskBit = 1 << fingerprint;
         this.skip = skip;
         this.isStatic = Modifier.isStatic(target.getModifiers());
         this.label = target.getDeclaringClass().getName() + "." + target.getName();
+        fingerprintField = skip ? null : target.getDeclaringClass().getDeclaredField("fingerprint");
+        if (fingerprintField != null) fingerprintField.setAccessible(true);
     }
 
     private native Method install0(Member target, Method callback);
@@ -61,19 +66,36 @@ public final class MethodHook {
         if (original == null) throw new IllegalStateException("Original method unavailable: " + label);
         int offset = isStatic ? 0 : 1;
         int flags = (Integer) arguments[offset + maskIndex];
+        reportInvocation(flags);
+        String generated = null;
         if ((flags & maskBit) != 0) {
-            arguments[offset + fingerprint] = UUID.randomUUID().toString();
+            generated = UUID.randomUUID().toString();
+            arguments[offset + fingerprint] = generated;
             arguments[offset + maskIndex] = flags & ~maskBit;
-            reportOnce("Fresh request fingerprint applied: ");
         }
         try {
             Object receiver = isStatic ? null : arguments[0];
             Object[] parameters = isStatic ? arguments : Arrays.copyOfRange(arguments, 1, arguments.length);
-            return original.invoke(receiver, parameters);
+            Object result = original.invoke(receiver, parameters);
+            if (generated != null) {
+                if (generated.equals(fingerprintField.get(receiver))) {
+                    reportOnce("Fresh request fingerprint applied: ");
+                    StartupTrace.event("fingerprint-field-verified", label);
+                } else {
+                    NativeRuntime.warn("Fingerprint constructor argument did not reach target field: " + label);
+                }
+            }
+            return result;
         } catch (InvocationTargetException failure) { throw failure.getCause(); }
     }
 
     private synchronized void reportOnce(String prefix) {
         if (!logged) { logged = true; NativeRuntime.info(prefix + label); }
+    }
+    private synchronized void reportInvocation(int flags) {
+        if (invocationLogged) return;
+        invocationLogged = true;
+        NativeRuntime.info("Request default constructor invoked: " + label + " mask=" + flags
+                + " fingerprint_default=" + ((flags & maskBit) != 0));
     }
 }

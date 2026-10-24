@@ -21,19 +21,22 @@ final class IdentityRules {
     private static boolean runtime;
     private static int retries;
     private static boolean candidatesReported;
+    private static boolean attempted;
 
     static synchronized void install(Context context) {
-        if (context == null || !NativeRuntime.load(context)) return;
+        if (attempted || context == null) return;
+        attempted = true;
+        if (!NativeRuntime.load(context)) return;
         runtime = true;
         ClassLoader loader = context.getClassLoader();
         StartupTrace.event("rules-selected", "mode=" + StartupTrace.mode() + " loader=" + loader.getClass().getName());
-        try { StartupTrace.inventory(candidates(loader)); }
+        try { if (StartupTrace.diagnostic()) StartupTrace.inventory(candidates(loader)); }
         catch (Exception failure) { StartupTrace.failure("class-inventory-failed", failure); }
         if (StartupTrace.beans()) retryBeans(loader);
         try { if (StartupTrace.properties()) installPersistence(context, loader); }
         catch (Exception failure) { NativeRuntime.warn("Properties rule discovery failed", failure); }
         catch (LinkageError failure) { NativeRuntime.warn("Properties rule unavailable", failure); }
-        if (StartupTrace.mode() == StartupTrace.Mode.FULL) {
+        if (StartupTrace.diagnostic() && StartupTrace.mode() == StartupTrace.Mode.FULL) {
             try {
                 int inspected = 0;
                 for (String name : candidates(loader)) {
@@ -48,17 +51,15 @@ final class IdentityRules {
     }
 
     static synchronized void retryBeans(ClassLoader loader) {
-        if (!runtime || !StartupTrace.beans() || INSTALLED.size() >= 2 || retries++ >= 4) return;
-        List<String> names;
-        try { names = candidates(loader); }
-        catch (Exception failure) {
-            NativeRuntime.warn("Request class enumeration unavailable", failure);
-            names = java.util.Collections.emptyList();
-        }
-        resolveBean(loader, names, "PreInstallAuthBean", 21, 17);
-        resolveBean(loader, names, "SnTokenBean", 20, 15);
-        if (!candidatesReported && INSTALLED.size() < 2) {
+        if (!runtime || !StartupTrace.beans() || INSTALLED.contains("SnTokenBean") || retries++ >= 4) return;
+        // The supplied 1.15.4 inventory confirms this exact class/schema.
+        // TerminalAuthBean has no fingerprint; the old PreInstall bean is absent.
+        bean(loader, "core.request.bean.SnTokenBean", "SnTokenBean", 20, 15);
+        if (StartupTrace.diagnostic() && !candidatesReported && INSTALLED.isEmpty()) {
             candidatesReported = true;
+            List<String> names;
+            try { names = candidates(loader); }
+            catch (Exception failure) { StartupTrace.failure("request-name-enumeration-failed", failure); return; }
             int count = 0;
             for (String name : names) {
                 if (name.matches("(?i).*(preinstall|sntoken|auth.*bean|bean.*auth|token.*bean|bean.*token).*")) {
@@ -68,21 +69,6 @@ final class IdentityRules {
             }
             NativeRuntime.info("Request class discovery entries=" + names.size() + " related_names=" + count);
         }
-    }
-
-    private static void resolveBean(ClassLoader loader, List<String> names, String simple, int strings, int fingerprint) {
-        if (INSTALLED.contains(simple)) return;
-        String selected = null;
-        for (String name : names) {
-            if (!name.endsWith("." + simple)) continue;
-            if (selected != null) {
-                NativeRuntime.warn("Request class discovery skipped: ambiguous name " + simple);
-                return;
-            }
-            selected = name;
-        }
-        if (selected == null) selected = "com.request.bean." + simple;
-        bean(loader, selected, simple, strings, fingerprint);
     }
 
     private static void bean(ClassLoader loader, String name, String role, int strings, int fingerprint) {
@@ -163,6 +149,7 @@ final class IdentityRules {
         SharedPreferences cache = context.getSharedPreferences("yc_lean_discovery_v1", 0);
         String cached = cache.getString("storage_class_11504", "");
         Storage selected = cached.isEmpty() ? null : storage(loader, cached);
+        if (selected == null) selected = storage(loader, "o2.g");
         if (selected == null) selected = storage(loader, "i2.f");
         if (selected == null) {
             for (String name : candidates(loader)) {

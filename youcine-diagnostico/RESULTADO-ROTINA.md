@@ -1,5 +1,40 @@
 # Resultado do log youcine-rotina.txt
 
+## Coleta de 21 execucoes: 20261023-232203-2761c226
+
+Todos os modos e a build exata v3.4.2-debug foram confirmados pelos diarios.
+Houve quatro SIGSEGV: RUNTIME tentativa 1, BEANS tentativa 1 e FULL tentativas
+1 e 3. RUNTIME nao instala callbacks de app; portanto o crash nao depende
+do callback SnToken ou Properties estar instalado. OFF inicial/final e
+BOUNDARY nao registraram esses crashes nas tentativas coletadas.
+
+Os offsets do auxiliar foram simbolicados com os simbolos da mesma build,
+identificada pelo commit 73e3ae0ef0e1ffff7b5971fdb04eb0ff63c4da3d:
+
+- 0x50023: ClassLinker::ShouldUseInterpreterEntrypoint, class_linker.hpp:18.
+- 0x51952: MemberFunction::operator(), hook_helper.hpp:132, chamado por
+  FixupStaticTrampolines.
+
+As pilhas mostram PC zero ao chamar o backup. O helper upstream publica o
+ponteiro apenas depois de inline_hooker ativar o desvio, deixando uma janela
+de entrada concorrente. Tambem nao verificava backup nulo para informar
+sucesso. A v3.5 introduz publicacao release/acquire e espera no callback,
+alem de recusar falha de instalacao do backend.
+
+Os schemas coletados mostram que SnTokenBean conserva vinte campos String
+e construtores de vinte Strings e vinte Strings + int + sc.g. TerminalAuthBean
+tem tres Strings e int, sem fingerprint. Nenhum schema de PreInstallAuthBean
+apareceu. Nao houve registro de execucao de fingerprint nessa coleta;
+Properties foi instalado e executado nas tres fases PROPERTIES e no FULL
+que completou a abertura. A nova concessao de trial continua nao demonstrada.
+
+O campo app_in_focus do resumo e invalido nesta coleta: a chamada remota
+perdeu as aspas do grep e executou mFocusedApp como comando, retornando 127.
+As mensagens ActivityManager Displayed e os eventos activity-resumed do
+diario sao evidencias separadas e utilizaveis. Vivo ao final nao e tratado
+como prova de ausencia de crash: RUNTIME tentativa 1 tem dois PIDs, com
+crash no primeiro e reinicio posterior.
+
 ## Conferencia complementar do mod e estado informado
 
 O usuario informa que desinstalou e reinstalou a v3.3.3. Isso afasta a

@@ -23,6 +23,7 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
     constexpr const char* abi = "armeabi-v7a";
 #endif
     __android_log_print(ANDROID_LOG_INFO, "YCLean", "ART helper loaded ABI=%s", abi);
+    __android_log_print(ANDROID_LOG_INFO, "YCLean", "ART backup publication=acquire-release waiting callbacks");
     symbols = std::make_shared<ArtSymbols>();
     if (!symbols->load()) {
         __android_log_print(ANDROID_LOG_WARN, "YCLean", "ART symbols unavailable; identity rules disabled");
@@ -31,8 +32,12 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
     lsplant::InitInfo info;
     info.inline_hooker = [](void* target, void* replacement) -> void* {
         dobby_dummy_func_t backup = nullptr;
-        return DobbyHook(target, reinterpret_cast<dobby_dummy_func_t>(replacement), &backup) == 0
-            ? reinterpret_cast<void*>(backup) : nullptr;
+        int status = DobbyHook(target, reinterpret_cast<dobby_dummy_func_t>(replacement), &backup);
+        if (status != 0 || !backup) {
+            __android_log_print(ANDROID_LOG_ERROR, "YCLean", "ART inline backend failed status=%d backup_present=%d", status, backup != nullptr);
+            return nullptr;
+        }
+        return reinterpret_cast<void*>(backup);
     };
     info.inline_unhooker = [](void* target) { return DobbyDestroy(target) == 0; };
     info.art_symbol_resolver = [resolver = symbols](std::string_view name) { return resolver->exact(name); };

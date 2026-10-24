@@ -6,15 +6,20 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.util.Log;
 
-/** Schedules rules; never initializes ART while providers are being installed. */
+/** Installs the verified DTO hook before the original authentication startup. */
 public final class IdentityProvider extends ContentProvider {
     @Override public boolean onCreate() {
         StartupTrace.initialize(getContext());
         StartupTrace.event("provider-enter", "mode=" + StartupTrace.mode());
-        Log.i("YCLean", "v3.4.2-debug identity provider entered; mode=" + StartupTrace.mode());
+        Log.i("YCLean", "v3.5 identity provider entered; mode=" + StartupTrace.mode());
         if (StartupTrace.mode() == StartupTrace.Mode.OFF) {
             StartupTrace.event("rules-disabled", "No engine, app hooks or instrumentation boundary");
         } else {
+            if (StartupTrace.engine()) {
+                StartupTrace.event("early-rules-enter", "before original Application.onCreate");
+                IdentityRules.install(getContext());
+                StartupTrace.event("early-rules-return", "before original Application.onCreate");
+            }
             AfterApplication.schedule(getContext());
         }
         return true;

@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 TOOLS = BUILD / "tools"
-ARTIFACT = "yc-tv-1.15.4-lean-v3.4.2-debug"
+ARTIFACT = "yc-tv-1.15.4-lean-v3.5"
 DOWNLOADS = {
     "original.apk": (
         "https://github.com/vazrenata07-hash/reverseengii/releases/download/2.01/yc_1.15.4_ycsite.apk",

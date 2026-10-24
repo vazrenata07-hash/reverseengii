@@ -1,214 +1,115 @@
-# YC TV 1.15.4 — Lean v3.4.2-debug
+# YC TV 1.15.4 — Lean v3.5 candidate
 
-## Build de depuracao por fases
+Inicializador proprio para o original TV 1.15.4, voltado a Android 9/10.
+Esta e uma correcao candidata da falha localizada na coleta de 21 execucoes.
+Compilacao, empacotamento e assinatura nao comprovam estabilidade ou trial.
+Todos os testes do aplicativo ficam com o usuario.
 
-Esta entrega prepara uma comparacao controlada para localizar a regressao.
-Nao e apresentada como correcao comprovada ou como trial funcional. A causa
-do crash relatado na v3.3.3 ainda nao foi estabelecida pelo log dessa versao.
+## Falha localizada
 
-O padrao desta build e OFF: mantem carregador/imagem original, registra o
-provider e nao inicializa o motor nem instala a fronteira Instrumentation.
-Um arquivo proprio `diagnostic.properties`, em getExternalFilesDir("yc_lean"),
-permite ao coletor selecionar OFF, BOUNDARY, RUNTIME, BEANS, PROPERTIES ou
-FULL. A selecao e lida uma vez por processo. Somente BOUNDARY ativa a fronteira
-sem motor; RUNTIME inicializa LSPlant sem hooks de app; BEANS e PROPERTIES
-isolam as duas familias; FULL combina ambas. A inicializacao LSPlant em si
-instala hooks internos de ART, por isso RUNTIME e separado de OFF/BOUNDARY.
+Na coleta 20261023-232203-2761c226, houve quatro SIGSEGV em fases com motor,
+incluindo uma em RUNTIME, que nao instala callbacks de app. As pilhas mostram
+PC zero e retorno por libycidentity.so+0x50023 ou +0x51952. Os simbolos exatos
+da build 73e3ae0 localizam essas chamadas em ClassLinker::ShouldUseInterpreterEntrypoint
+e MemberFunction::operator(), usadas por FixupStaticTrampolines.
 
-StartupTrace grava um diario JSONL por execucao, independente de Logcat,
-com versao, identificador da coleta, PID/TID, tempo, modo e cada fronteira de
-inicializacao. Registra entrada, retorno e excecao do Application.onCreate,
-arquitetura da VM, carga do motor, instalacao de cada hook e ciclo de Activity.
-Um observador de excecao Java delega ao handler original. Os erros continuam
-a seguir o fluxo normal do Android. A copia de nomes de classes, quando o
-motor esta ativo, permite examinar os DTO disponiveis sem dados de sessao.
+O helper LSPlant v6.4 instala o desvio por inline_hooker e somente depois
+atribui o ponteiro de backup. Uma thread pode entrar no callback enquanto
+esse ponteiro ainda esta nulo. O helper tambem retornava sucesso ao encontrar
+o simbolo original, mesmo se o backend devolvesse backup nulo.
 
-O coletor efetua OFF inicial, BOUNDARY, RUNTIME, BEANS, PROPERTIES, FULL e OFF
-final com dados preservados, marcadores distintos, pilhas Java/nativas,
-mapas, metadados do APK e diarios. Compara o SHA-256 exato e verifica o modo
-efetivamente registrado pelo app. Falta de diario ou modo divergente nao e
-contada como fase valida. Os mesmos dados e caches sao usados em todas as
-fases; a ordem pode influenciar o resultado. A comparacao identifica a etapa
-associada a falha e nao prova por si uma causa unica.
+## Correcao nativa
 
-A release inclui simbolos nativos nao removidos e build-identity.json com
-commit e hashes dos auxiliares empacotados, para simbolicar uma pilha nativa
-contra o binario correto. O agente compila, empacota e assina. A execucao
-dos cenarios continua com o usuario.
+O patch local substitui os slots de backup por YCReadyBackup. O alvo original
+e publicado com release; o callback aguarda e le com acquire antes de invocar
+o alvo. Isso cobre ponteiros de funcoes e MemberFunction sem leitura simultanea
+da representacao de ponteiro de membro parcialmente escrita. Falhas do backend
+passam a ser recusadas em HookSymNoHandle. O backend registra status e ausencia
+de backup. Um callback indevido apos uma falha de instalacao nao recebe um
+retorno inventado: produz abort explicito, em vez de chamada ao endereco zero.
 
-Atualizacao pelo log v3.3.3: duas inicializacoes falham em i.c.b() no
-construtor de ComponentActivity/WelcomeActivity; a terceira chega a HomeActivity.
-O hook core.request.bean.SnTokenBean e instalado, mas nao ha registro de
-aplicacao de fingerprint; PreInstallAuthBean continua ausente pelo nome
-procurado. O coletor repete cada fase tres vezes. A fase FULL registra tambem
-o formato dos DTO relacionados, incluindo TerminalAuthBean, sem chamar seus
-construtores ou metodos de autenticacao. Os dados ajudam a verificar a mudanca
-do modelo da versao nova sem presumir equivalencia com o mod 1.15.1.
+patch_vendor.py valida o SHA-256 exato do header original antes de aplicar a
+alteracao. build_native.py restaura esse arquivo no checkout fixo do LSPlant
+e aplica o patch. O header proprio esta em native/yc_ready_backup.hpp.
 
-## Correcao v3.3.3
+## Integracao da identidade
 
-O log youcine-crash.txt confirma `ART identity runtime ready=true VM
-ABI=x86_64 loader=isolated`. A correcao de arquitetura da v3.3.2 funcionou.
-A falha seguinte e Java: AppWrapper.onCreate termina com NullPointerException
-ao chamar AutoSizeConfig.setPrivateFontScale sobre referencia nula. Antes
-disso, a regra Properties em o2.g.A foi instalada e as duas classes de
-autenticacao nao foram encontradas pelo nome com.request.bean.
+A coleta confirmou core.request.bean.SnTokenBean, com vinte parametros String,
+int de mascara e sc.g, e o campo fingerprint String. A v3.5 usa esse alvo
+diretamente, mascara 0x8000/indice 15 da referencia, validando o formato antes
+de instalar o callback. PreInstallAuthBean nao aparece nessa versao;
+TerminalAuthBean tem authCode/authVersion/reserve1/openNum e nao tem fingerprint.
+Ele nao e usado como substituto do modelo antigo.
 
-O log nao demonstra qual chamada anterior produziu a referencia nula nem
-prova que o hook Properties seja sua causa. A v3.3.3 muda a ordem: o provider
-somente agenda a inicializacao. Uma Instrumentation temporaria, usada apenas
-quando a original e a padrao do Android, restaura a original antes de delegar
-Application.onCreate. As regras iniciam depois que a chamada original retorna,
-antes de esse despacho do framework terminar. A infraestrutura original de
-Instrumentation fica restaurada durante toda a chamada do aplicativo. Se a
-fronteira nao estiver disponivel, usa a fila principal e registra o fallback.
+As regras passam a ser instaladas no provider, antes de Application.onCreate,
+para alcancar autenticacao que possa comecar nessa chamada. A instalacao e
+idempotente. A fronteira posterior permanece para registrar o retorno da
+Application e eventos de Activity, sem reinstalar os hooks. Isso muda a ordem
+das builds anteriores; o efeito nessa versao ainda exige teste do usuario.
 
-Os callbacks de Activity sao registrados na Application apos sua criacao,
-e a procura dos dois beans usa os nomes presentes nos DEX carregados. Uma
-mudanca de pacote pode ser reconhecida pelo nome simples, com a mesma
-validacao de campos e construtor; nomes ambiguos nao recebem hooks. Quando
-nao encontra, registra ate 40 nomes relacionados, sem valores de sessao ou
-identificadores. Isso nao presume que nomes completamente obfuscados possam
-ser tratados por essa regra.
+O callback gera UUID quando a mascara solicita o fingerprint padrao, preserva
+argumentos explicitos e verifica apos o construtor se o UUID chegou ao campo
+fingerprint. Registra a primeira invocacao e a mascara sem imprimir o UUID.
+Instalacao do hook, execucao e verificacao do campo sao etapas distintas.
+Os nomes de parametros nao estavam presentes nos metadados recebidos; a
+verificacao do campo e importante para conferir a correspondencia de argumento.
 
-A imagem externa original da v3.2 e o auxiliar da arquitetura real da VM da
-v3.3.2 permanecem. A mudanca de ordem ainda depende do teste do usuario e
-pode deixar de interceptar trabalho iniciado dentro de Application.onCreate.
-Nao foram executados testes do app pelo agente.
+A escrita Properties reconhecida na coleta e o2.g.A. A v3.5 preserva essa regra
+com verificacao de formato. A rotina t() vazia da referencia 1.15.1 ainda nao
+tem correspondencia comprovada na classe renomeada 1.15.4; ela nao e escolhida
+por suposicao. A concessao de novo trial pelo servidor nao foi observada.
 
-## Correcao v3.3.2
+## Carregamento preservado
 
-A coleta `20261023-181826-899` confirma o APK exato v3.3.1. A descoberta
-pelos mapas funcionou (`phdr=0 maps=5`), mas o motor encontrou apenas 17
-simbolos e falhou em GetMethodShorty. Os mapas mostram o auxiliar ARM64 em
-code_cache/yc_identity/arm64-v8a, executado por Houdini, enquanto o ART do
-processo e x86_64. O libart.so copiado pelo ADB tem 29 secoes e o simbolo
-GetMethodShorty; a leitura pelo auxiliar traduzido registrou 11 secoes.
+A imagem original assinada continua na pasta externa especifica do app,
+validada por SHA-256 e com caminho obtido de /proc/self/fd. Essa e a estrategia
+de abertura da v3.2 confirmada pelo usuario. O auxiliar e escolhido pelo ELF
+de /proc/self/exe e carregado por um DexClassLoader com pai boot e namespace
+nativo separado. Assim o MEmu usa o auxiliar x86_64 junto do ART x86_64 e
+mantem a ponte ARM do player.
 
-A v3.3.2 determina a arquitetura pelo ELF de /proc/self/exe em Java, sem
-usar os.arch para escolher a biblioteca. Carrega EngineEntry por um
-DexClassLoader separado com pai boot e diretorio nativo da arquitetura da
-VM. Isso evita herdar o namespace ARM do aplicativo no carregamento do
-auxiliar. EngineEntry carrega a biblioteca e registra explicitamente os
-metodos JNI das classes de regras por RegisterNatives. O loader e mantido
-vivo durante o processo. O carregador original e a ponte ARM do player
-continuam preservados.
+As quatro bibliotecas permanecem em assets/yc_hooks. Nao ha mudanca nas ABIs
+do diretorio lib/ original. O carregador e a biblioteca Dex2C do mod de
+terceiros continuam apenas referencias de analise, sem incorporacao ao APK.
 
-Os registros das regras passam pela ponte JNI de log depois do carregamento;
-a coleta anterior nao mostrou mensagens Java dessa fase, embora contivesse
-as mensagens nativas. O log distingue ABI do auxiliar, motor pronto, vinculos
-JNI, instalacao de regras e primeira execucao. Nao foram executados testes do
-aplicativo: a inicializacao do motor e o efeito das regras ainda dependem
-do teste do usuario.
+## Modos e registros
 
-## Correcao v3.3.1
+O padrao da v3.5 e FULL, com as regras habilitadas. O arquivo proprio
+diagnostic.properties em getExternalFilesDir("yc_lean") ainda permite OFF,
+BOUNDARY, RUNTIME, BEANS, PROPERTIES ou FULL para comparacoes controladas.
+O arquivo e lido uma vez por processo. O coletor antigo instala sua propria
+build v3.4.2-debug; ele nao serve para confirmar que a v3.5 esta instalada.
 
-O log fornecido apos a v3.3 registra duas vezes `ART symbols unavailable;
-identity rules disabled`. Isso confirma que o auxiliar nativo carregou mas
-desativou a rotina antes de instalar os callbacks. O log antigo nao distinguia
-localizacao da biblioteca, abertura do ELF e leitura dos simbolos.
-
-A v3.3.1 acrescenta descoberta de libart pelos mapas do proprio processo,
-com calculo do load bias pelos segmentos PT_LOAD e verificacao da arquitetura
-ELF. Mantem dl_iterate_phdr como outra origem; namespaces do linker podem
-restringir sua enumeracao. Registra separadamente candidatos encontrados,
-falha de abertura/leitura, ABI divergente e quantidade de simbolos extraidos.
-O log recebido comprova a etapa desativada, mas nao identifica sozinho qual
-das subetapas falhou. A abertura externa do original da v3.2 e preservada.
-
-Base: `yc_1.15.4_ycsite.apk`, release `2.01` deste repositório. Android 9/10.
-O usuário confirmou que a v3.2 abriu, mas sua rotina de identidade não teve o
-efeito esperado. A v3.3 preserva a estratégia de abertura e muda essa rotina.
-
-## Abertura preservada
-
-O APK original assinado continua na pasta externa específica do aplicativo,
-obtida por `getExternalFilesDirs("yc_lean")`, validado por tamanho e SHA-256.
-O caminho real continua obtido por `Os.readlink("/proc/self/fd/" + fd)` antes
-da delegação à fábrica original. Isso conserva a solução da v3.2 para o layout
-rejeitado por `libexec.so+0x48c10`: caminho iniciando em `/data/` e contendo
-`/com.world.youcinetv/`. O adaptador local de assinatura também permanece.
-
-Não foram incorporados o carregador nem a biblioteca Dex2C do mod de terceiros.
-
-## Rotina nova
-
-A v3.2 persistia um UUID e o atribuía a `Build.FINGERPRINT`. Isso não reproduzia
-o mod: ele gera UUID no argumento padrão `fingerprint` de dois objetos de
-autenticação. A v3.3 remove a identidade persistida e a atribuição global.
-
-| Objeto | Parâmetro fingerprint, índice zero | Máscara padrão |
-| --- | --- | --- |
-| PreInstallAuthBean | 17 | 0x20000 |
-| SnTokenBean | 15 | 0x8000 |
-
-O novo callback fornece `UUID.randomUUID().toString()` quando a máscara
-solicita o fingerprint padrão, limpa somente esse bit e chama o construtor
-original. Cada construção nesse caminho recebe um UUID próprio. Valores
-explicitamente passados pelo chamador são preservados. Android ID, MAC e
-serial não são randomizados: o código examinado do mod consulta o sistema.
-
-A rotina de escrita Properties de três argumentos String, vazia no mod,
-também passa a ser omitida quando sua classe correspondente é localizada.
-O reconhecimento verifica formato dos campos e métodos; resultado ausente
-ou ambíguo é registrado e não recebe alteração. A rotina `t()` vazia só é
-interceptada se a classe ainda for `i2.f` com o formato esperado. O código não
-apaga arquivos globais nem presume que todas as chaves de sessão sejam cache.
-
-O motor de interceptação é LSPlant v6.4 com Dobby; as regras Java, ponte JNI e
-leitor dos símbolos ELF de ART são deste projeto. O leitor inclui suporte a
-`.gnu_debugdata` por liblzma. Um ContentProvider privado inicia as regras
-depois de Application.attach e antes de Application.onCreate. Há tentativas
-limitadas adicionais nos primeiros eventos de Activity se os objetos ainda
-não estiverem visíveis. O auxiliar é compilado para ARM32, ARM64, x86 e x64.
-
-As quatro bibliotecas ficam em `assets/yc_hooks/`, com SHA-256, e só a versão
-correspondente à VM é extraída para code_cache. Não se adicionam novas ABIs ao
-diretório `lib/` do APK: isso preserva a seleção das bibliotecas originais e
-a ponte ARM usada pelo player no MEmu. A dependência dessa ponte permanece.
-
-## Estado da entrega
-
-A análise estática detalhada está em
-[COMPARACAO-IDENTIDADE.md](../youcine-diagnostico/COMPARACAO-IDENTIDADE.md).
-O mod de referência é 1.15.1; a base nova é 1.15.4, cujo código protegido de
-autenticação não foi extraído. Por isso os hooks exigem as assinaturas e os
-campos esperados. Os logs `YCLean` distinguem inicialização do motor, instalação
-dos callbacks e primeira aplicação de fingerprint, sem imprimir os valores.
-
-Compilar, empacotar e assinar não confirmam a abertura ou o efeito no servidor.
-Não foram executados testes do aplicativo; todos os testes nos dispositivos
-ficam com o usuário. A abertura da v3.2 foi confirmada pelo usuário; a nova
-ponte nativa e as regras da v3.3 ainda precisam dessa confirmação. Uma nova
-identidade local não comprova concessão de novo trial pelo servidor.
+O diario JSONL conserva versao, PID, identificador e etapas. Inventario completo
+de classes e schemas detalhados ficam restritos a runs de diagnostico, evitando
+varredura extensa na abertura normal. A release inclui simbolos nativos nao
+removidos e build-identity.json para simbolicar os offsets do binario exato.
 
 ## Compilar
 
-Linux, Python 3.11+, JDK 17/21, Git, CMake 3.31, Ninja e Android NDK
-26.3.11579264. As fontes externas são obtidas em commits fixos por
-`build_native.py`; o build não executa testes.
+Linux, Python 3.11+, JDK 17/21, Git, CMake 3.31, Ninja, NDK 26.3.11579264:
 
 ```sh
-export ANDROID_NDK_HOME=/caminho/para/android-sdk/ndk/26.3.11579264
+export ANDROID_NDK_HOME=/caminho/android-sdk/ndk/26.3.11579264
 python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.4.2-debug.apk`. O workflow `YC TV Lean Build`
-compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.4.2-debug`.
+Saida: build/yc-tv-1.15.4-lean-v3.5.apk. O workflow publica APK, fontes,
+checksums, identidade do build e simbolos. Nenhum teste do app e executado.
 
-## Dependências e fontes
+## Fontes e dependencias
 
-| Componente | Revisão | Fonte/licença |
+| Componente | Revisao | Licenca |
 | --- | --- | --- |
-| LSPlant v6.4 | 7217ac6f41e2bda549e4acb54e632abb03e5ccaf | https://github.com/LSPosed/LSPlant — LGPL-3.0 |
-| DexBuilder, submódulo LSPlant | 9d57844a301077abf4c29e061b2458c56a363c8f | https://github.com/LSPosed/DexBuilder — LGPL-3.0 |
-| Dobby | 9c85e74f92eda36b99ddb0fddb17a9df2278a4d3 | https://github.com/jmpews/Dobby — Apache-2.0 |
-| liblzma/XZ 5.4.6 | 6e8732c5a317a349986a4078718f1d95b67072c5 | https://github.com/tukaani-project/xz — ver COPYING-XZ.txt |
+| LSPlant v6.4 + patch local | 7217ac6f41e2bda549e4acb54e632abb03e5ccaf | LGPL-3.0 |
+| DexBuilder | 9d57844a301077abf4c29e061b2458c56a363c8f | LGPL-3.0 |
+| Dobby | 9c85e74f92eda36b99ddb0fddb17a9df2278a4d3 | Apache-2.0 |
+| liblzma/XZ 5.4.6 | 6e8732c5a317a349986a4078718f1d95b67072c5 | ver COPYING-XZ.txt |
 
-Os textos estão em `licenses/` e também no APK. As fontes próprias desta
-entrega são disponibilizadas sob LGPL-3.0-or-later; os componentes externos
-mantêm seus termos. Os scripts e revisões permitem recompilar e substituir
-as bibliotecas sem reutilizar binários do mod. O aplicativo original e seus
-componentes mantêm seus termos próprios.
+Fontes upstream: https://github.com/LSPosed/LSPlant,
+https://github.com/LSPosed/DexBuilder, https://github.com/jmpews/Dobby,
+https://github.com/tukaani-project/xz. As licencas estao em licenses/ e no APK.
+As fontes proprias e o patch sao LGPL-3.0-or-later; os componentes externos
+mantem seus termos. O APK original tem SHA-256
+5629c0dc0dc0b631f09bd21f81a5d671e64e6d516cb4a28a9b9fb45a2971b231.

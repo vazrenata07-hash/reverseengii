@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import patch_vendor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -33,6 +34,8 @@ def main():
         run("git", "fetch", "--depth", "1", "origin", revision, cwd=directory)
         run("git", "checkout", "--detach", "FETCH_HEAD", cwd=directory)
         if name == "lsplant":
+            run("git", "restore", "--", "lsplant/src/main/jni/include/utils/hook_helper.hpp", cwd=directory)
+            patch_vendor.apply(directory)
             run("git", "-c", "url.https://github.com/.insteadOf=git@github.com:", "submodule", "update",
                 "--init", "--recursive", "--depth", "1", "lsplant/src/main/jni/external/dex_builder", cwd=directory)
     strip = next((ndk / "toolchains/llvm/prebuilt").glob("*/bin/llvm-strip"))

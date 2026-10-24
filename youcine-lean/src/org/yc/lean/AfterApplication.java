@@ -71,7 +71,7 @@ final class AfterApplication {
             StartupTrace.event("rules-phase-enter", "boundary=" + boundary + " app=" + application.getClass().getName());
             if (StartupTrace.engine()) IdentityRules.install(application);
             else StartupTrace.event("boundary-only", "Engine disabled");
-            NativeRuntime.info("v3.4.2-debug identity rules initialization completed; app=" + application.getClass().getName());
+            NativeRuntime.info("v3.5 identity rules initialization completed; app=" + application.getClass().getName());
             StartupTrace.event("rules-phase-return", "mode=" + StartupTrace.mode());
             application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
                 @Override public void onActivityPreCreated(Activity activity, Bundle state) {

@@ -22,8 +22,8 @@ import org.json.JSONObject;
 /** Diagnostic build only: stage journal independent of Java/native log filters. */
 final class StartupTrace {
     enum Mode { OFF, BOUNDARY, RUNTIME, BEANS, PROPERTIES, FULL }
-    static final String VERSION = "v3.4.2-debug";
-    private static Mode mode = Mode.OFF;
+    static final String VERSION = "v3.5";
+    private static Mode mode = Mode.FULL;
     private static String run = "manual";
     private static File directory;
     private static File journal;
@@ -67,6 +67,7 @@ final class StartupTrace {
     }
 
     static Mode mode() { return mode; }
+    static boolean diagnostic() { return !run.equals("manual"); }
     static boolean beans() { return mode == Mode.BEANS || mode == Mode.FULL; }
     static boolean properties() { return mode == Mode.PROPERTIES || mode == Mode.FULL; }
     static boolean engine() { return mode != Mode.OFF && mode != Mode.BOUNDARY; }
