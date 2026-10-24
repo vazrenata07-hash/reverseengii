@@ -1,0 +1,42 @@
+name: Original mod compatibility APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'youcine-mod-compat/**'
+      - '.github/workflows/yc-mod-compat.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yc-original-mod-compat
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and sign original mod compatibility patch
+        run: python3 youcine-mod-compat/build.py --work /tmp/yc-mod-compat --out dist-mod-compat
+      - uses: actions/upload-artifact@v4
+        with:
+          name: youcine-tv-mod-compat-v1
+          path: dist-mod-compat/*
+      - name: Publish separate APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create youcine-tv-mod-compat-v1 dist-mod-compat/* --target "$GITHUB_SHA" --title "YouCine TV — mod original com patch de compatibilidade v1" --notes-file youcine-mod-compat/release-notes.md --prerelease
