@@ -1,4 +1,35 @@
-# YC TV 1.15.4 — Lean v3.3.2 experimental
+# YC TV 1.15.4 — Lean v3.3.3 experimental
+
+## Correcao v3.3.3
+
+O log youcine-crash.txt confirma `ART identity runtime ready=true VM
+ABI=x86_64 loader=isolated`. A correcao de arquitetura da v3.3.2 funcionou.
+A falha seguinte e Java: AppWrapper.onCreate termina com NullPointerException
+ao chamar AutoSizeConfig.setPrivateFontScale sobre referencia nula. Antes
+disso, a regra Properties em o2.g.A foi instalada e as duas classes de
+autenticacao nao foram encontradas pelo nome com.request.bean.
+
+O log nao demonstra qual chamada anterior produziu a referencia nula nem
+prova que o hook Properties seja sua causa. A v3.3.3 muda a ordem: o provider
+somente agenda a inicializacao. Uma Instrumentation temporaria, usada apenas
+quando a original e a padrao do Android, restaura a original antes de delegar
+Application.onCreate. As regras iniciam depois que a chamada original retorna,
+antes de esse despacho do framework terminar. A infraestrutura original de
+Instrumentation fica restaurada durante toda a chamada do aplicativo. Se a
+fronteira nao estiver disponivel, usa a fila principal e registra o fallback.
+
+Os callbacks de Activity sao registrados na Application apos sua criacao,
+e a procura dos dois beans usa os nomes presentes nos DEX carregados. Uma
+mudanca de pacote pode ser reconhecida pelo nome simples, com a mesma
+validacao de campos e construtor; nomes ambiguos nao recebem hooks. Quando
+nao encontra, registra ate 40 nomes relacionados, sem valores de sessao ou
+identificadores. Isso nao presume que nomes completamente obfuscados possam
+ser tratados por essa regra.
+
+A imagem externa original da v3.2 e o auxiliar da arquitetura real da VM da
+v3.3.2 permanecem. A mudanca de ordem ainda depende do teste do usuario e
+pode deixar de interceptar trabalho iniciado dentro de Application.onCreate.
+Nao foram executados testes do app pelo agente.
 
 ## Correcao v3.3.2
 
@@ -118,9 +149,9 @@ python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.3.2.apk`. O workflow `YC TV Lean Build`
+Saída: `build/yc-tv-1.15.4-lean-v3.3.3.apk`. O workflow `YC TV Lean Build`
 compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.3.2`.
+fontes na release `yc-tv-1.15.4-lean-v3.3.3`.
 
 ## Dependências e fontes
 

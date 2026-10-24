@@ -20,6 +20,7 @@ final class IdentityRules {
     private static final Set<String> INSTALLED = new HashSet<>();
     private static boolean runtime;
     private static int retries;
+    private static boolean candidatesReported;
 
     static synchronized void install(Context context) {
         if (context == null || !NativeRuntime.load(context)) return;
@@ -33,12 +34,44 @@ final class IdentityRules {
 
     static synchronized void retryBeans(ClassLoader loader) {
         if (!runtime || INSTALLED.size() >= 2 || retries++ >= 4) return;
-        bean(loader, "com.request.bean.PreInstallAuthBean", 21, 17);
-        bean(loader, "com.request.bean.SnTokenBean", 20, 15);
+        List<String> names;
+        try { names = candidates(loader); }
+        catch (Exception failure) {
+            NativeRuntime.warn("Request class enumeration unavailable", failure);
+            names = java.util.Collections.emptyList();
+        }
+        resolveBean(loader, names, "PreInstallAuthBean", 21, 17);
+        resolveBean(loader, names, "SnTokenBean", 20, 15);
+        if (!candidatesReported && INSTALLED.size() < 2) {
+            candidatesReported = true;
+            int count = 0;
+            for (String name : names) {
+                if (name.matches("(?i).*(preinstall|sntoken|auth.*bean|bean.*auth|token.*bean|bean.*token).*")) {
+                    NativeRuntime.info("Request class candidate (name only): " + name);
+                    if (++count >= 40) break;
+                }
+            }
+            NativeRuntime.info("Request class discovery entries=" + names.size() + " related_names=" + count);
+        }
     }
 
-    private static void bean(ClassLoader loader, String name, int strings, int fingerprint) {
-        if (INSTALLED.contains(name)) return;
+    private static void resolveBean(ClassLoader loader, List<String> names, String simple, int strings, int fingerprint) {
+        if (INSTALLED.contains(simple)) return;
+        String selected = null;
+        for (String name : names) {
+            if (!name.endsWith("." + simple)) continue;
+            if (selected != null) {
+                NativeRuntime.warn("Request class discovery skipped: ambiguous name " + simple);
+                return;
+            }
+            selected = name;
+        }
+        if (selected == null) selected = "com.request.bean." + simple;
+        bean(loader, selected, simple, strings, fingerprint);
+    }
+
+    private static void bean(ClassLoader loader, String name, String role, int strings, int fingerprint) {
+        if (INSTALLED.contains(role)) return;
         try {
             Class<?> type = Class.forName(name, false, loader);
             for (String field : new String[] {"fingerprint", "androidId", "wifiMac", "serialNumber"}) {
@@ -61,7 +94,7 @@ final class IdentityRules {
             if (selected == null) throw new IllegalStateException("Request constructor schema differs from reference");
             selected.setAccessible(true);
             if (!MethodHook.constructor(selected, fingerprint, strings)) throw new IllegalStateException("Constructor hook rejected");
-            INSTALLED.add(name);
+            INSTALLED.add(role);
             NativeRuntime.info("Request fingerprint hook installed: " + name + " mask=" + (1 << fingerprint));
         } catch (Exception failure) {
             NativeRuntime.warn("Request identity rule not installed: " + name, failure);
@@ -116,6 +149,7 @@ final class IdentityRules {
         if (selected == null) selected = storage(loader, "i2.f");
         if (selected == null) {
             for (String name : candidates(loader)) {
+                if (!name.matches("[A-Za-z][A-Za-z0-9_]{0,5}\\.[A-Za-z][A-Za-z0-9_]{0,5}")) continue;
                 Storage candidate = storage(loader, name);
                 if (candidate == null) continue;
                 if (selected != null && selected.type != candidate.type) {
@@ -153,9 +187,9 @@ final class IdentityRules {
                     Enumeration<String> entries = ((DexFile) dex).entries();
                     while (entries.hasMoreElements()) {
                         String name = entries.nextElement();
-                        // Obfuscated utility classes in the reference have two
-                        // short segments. Do not load platform or SDK classes.
-                        if (name.matches("[A-Za-z][A-Za-z0-9_]{0,5}\\.[A-Za-z][A-Za-z0-9_]{0,5}")) names.add(name);
+                        // Enumerate names only. Each rule filters its own
+                        // candidates before loading or inspecting any class.
+                        names.add(name);
                     }
                 }
             } catch (NoSuchFieldException ignored) {

@@ -1,5 +1,34 @@
 # Resultado do log youcine-rotina.txt
 
+## Atualizacao: youcine-crash.txt, v3.3.2
+
+O motor agora inicia: `ART identity runtime ready=true VM ABI=x86_64
+loader=isolated`. A regra Properties registra instalacao em o2.g.A.
+PreInstallAuthBean e SnTokenBean nao foram encontradas no pacote com.request.bean
+durante a instalacao do provider. Nao ha mensagem de uso dos callbacks de
+fingerprint no arquivo recebido.
+
+A terminacao e uma excecao Java em AppWrapper.onCreate, com a mensagem:
+
+```text
+Attempt to invoke virtual method 'me.jessyan.autosize.AutoSizeConfig
+me.jessyan.autosize.AutoSizeConfig.setPrivateFontScale(float)'
+on a null object reference
+```
+
+A pilha aponta AppWrapper.H(SourceFile:9), AppWrapper.onCreate(SourceFile:32)
+e Instrumentation.callApplicationOnCreate. Esse erro e diferente da falha de
+arquitetura anterior. O log nao mostra qual chamada anterior forneceu o
+objeto nulo nem estabelece uma relacao causal com o hook Properties.
+
+A v3.3.3 retira a inicializacao do motor e das regras da fase de providers.
+Usa uma fronteira apos o retorno do Application.onCreate original, restaura
+a Instrumentation padrao antes de entrar no app e registra os callbacks na
+Application criada. Procura os beans pelo nome simples nos DEX presentes,
+mantendo validacao do formato e rejeicao de nomes ambiguos. Nomes relacionados
+sao registrados para distinguir renomeacao de indisponibilidade nessa fase.
+A abertura e o efeito da rotina permanecem para os testes do usuario.
+
 ## Atualizacao: coleta 20261023-181826-899
 
 O SHA-256 corresponde exatamente ao APK v3.3.1 publicado. A descoberta por
