@@ -1,0 +1,59 @@
+name: YC Phase Debug Kit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'youcine-diagnostico/Depurar-YouCine.ps1'
+      - 'youcine-diagnostico/Depurar-YouCine.cmd'
+      - 'youcine-diagnostico/DEPURACAO.md'
+      - '.github/workflows/yc-phase-debug.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yc-phase-debug-kit
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell syntax without executing collector
+        shell: pwsh
+        run: |
+          $parseErrors = $null
+          $tokens = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'youcine-diagnostico/Depurar-YouCine.ps1'), [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -gt 0) { throw ($parseErrors | Out-String) }
+          Write-Host 'Syntax parsed. Collector and application were not executed.'
+      - name: Package diagnostic kit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import hashlib
+          root = Path('youcine-diagnostico')
+          output = root / 'build-phase'
+          output.mkdir(exist_ok=True)
+          with ZipFile(output / 'youcine-depuracao-v1.zip', 'w', ZIP_DEFLATED) as archive:
+              for name in ('Depurar-YouCine.ps1', 'Depurar-YouCine.cmd', 'DEPURACAO.md'):
+                  content = (root / name).read_text(encoding='utf-8')
+                  archive.writestr(name, content.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
+          archive = output / 'youcine-depuracao-v1.zip'
+          (output / 'SHA256SUMS.txt').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+          PY
+      - name: Publish kit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag=youcine-phase-debug-v1
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title 'YouCine - Depuracao por fases v1' --notes-file youcine-diagnostico/DEPURACAO.md
+          fi
+          gh release upload "$tag" youcine-diagnostico/build-phase/youcine-depuracao-v1.zip youcine-diagnostico/build-phase/SHA256SUMS.txt --clobber

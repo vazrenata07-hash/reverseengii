@@ -1,5 +1,48 @@
 # Resultado do log youcine-rotina.txt
 
+## Conferencia complementar do mod e estado informado
+
+O usuario informa que desinstalou e reinstalou a v3.3.3. Isso afasta a
+hipotese simples de dados privados preservados por uma atualizacao; nao
+estabelece o estado de backups externos ou do servidor.
+
+A leitura dos getters nativos getFingerprint dos dois DTO do mod confirma
+GETFIELD de String fingerprint (PreInstall em 0x3f218, SnToken em 0x65eac).
+Nao ha geracao de UUID nesses getters. A geracao explicita continua nos
+construtores sinteticos padrao previamente examinados. Portanto, trocar
+getters ou gerar UUID indiscriminadamente seria outra dinamica.
+
+No mod, a rotina A de escrita Properties e t() sem argumentos foram
+identificadas como vazias. A implementacao atual reconheceu A em o2.g, mas
+nao estabeleceu uma correspondencia comprovada para t() na 1.15.4. A troca
+do modelo PreInstall e a chamada efetiva dos construtores seguem incompletas.
+O pacote de depuracao coleta as assinaturas, campos e metadados Kotlin dos
+DTO reais em execucoes separadas, alem de comparar as familias de hooks.
+Uma nova concessao de trial ainda nao foi demonstrada.
+
+## Atualizacao: youcine-crash-v333.txt, abertura intermitente
+
+O arquivo registra tres PIDs. Os processos 9136 e 9334 terminam ao construir
+WelcomeActivity, com NPE em i.c.b() dentro de androidx.activity.ComponentActivity.
+O PID 9498 avanca por WelcomeActivity e chega a HomeActivity; o usuario
+confirma que abriu na terceira tentativa. Esse arquivo nao registra o NPE
+anterior de AutoSizeConfig nessa sequencia. A nova falha e intermitente e
+ocorre em outra etapa, sem demonstracao de causa unica.
+
+Em todos os tres processos, o motor x86_64 fica pronto e o hook do construtor
+core.request.bean.SnTokenBean e instalado com mascara 32768. PreInstallAuthBean
+continua nao encontrada pelo nome usado. Na execucao que abriu, aparece uso
+do callback Properties em o2.g.A. Nao aparece a mensagem de aplicacao de
+fingerprint, e o log nao inclui resposta de concessao de trial do servidor.
+Portanto, instalar o hook SnToken nao comprova que esse caminho construiu
+uma nova identidade nessa execucao.
+
+A depuracao por fases usa tres aberturas para cada configuracao, com dados
+preservados e identificadores independentes. Os metadados dos DTO relacionados
+sao coletados na fase FULL para examinar o modelo real da 1.15.4, incluindo
+core.request.bean.TerminalAuthBean, sem presumir equivalencia com o nome da
+versao 1.15.1. Diario e Logcat conservam as excecoes e os PIDs de cada tentativa.
+
 ## Atualizacao: youcine-crash.txt, v3.3.2
 
 O motor agora inicia: `ART identity runtime ready=true VM ABI=x86_64
