@@ -1,10 +1,10 @@
-Patch de compatibilidade aplicado ao **mod original de terceiros da release 2.0**.
+Patch **v2 aplicado ao mod original de terceiros**, direcionado ao crash nativo registrado no diagnóstico.
 
-- Publicação visível do backup Java do Pine antes da chamada nativa.
-- Preferência por processo de 32 bits, quando disponível, para compatibilidade com as pontes do carregador.
-- Módulo original, APK embutido e bibliotecas nativas preservados byte a byte.
+- Proteção de memória executada pela arquitetura real do processo no MEmu/Houdini.
+- Cópia do hook em páginas ARM protegidas com escrita temporária e restauração da proteção.
+- Módulo original e bibliotecas sob lib/ preservados; hooks mantidos.
+- Código de máquina das bibliotecas do carregador preservado, com redirecionamento de dois imports.
+- Impede reutilização de lib.so antigo com o mesmo tamanho.
 
-Somente `classes.dex` externo, manifesto e assinatura foram alterados.
-Compilação e integridade do pacote verificadas. Testes no aparelho ficam com o usuário; a eliminação de todos os crashes ainda depende dessa execução.
-
-Baixe `youcine-tv-mod-compat-v1.apk`. A assinatura diferente pode exigir desinstalar a versão anterior.
+Baixe **youcine-tv-mod-compat-v2.apk**. Usa a mesma assinatura da compat-v1.
+Compilação e integridade conferidas. Não houve execução no aparelho; o teste e a confirmação de funcionamento ficam com o usuário.
