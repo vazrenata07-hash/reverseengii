@@ -11,7 +11,7 @@ public final class IdentityProvider extends ContentProvider {
     @Override public boolean onCreate() {
         StartupTrace.initialize(getContext());
         StartupTrace.event("provider-enter", "mode=" + StartupTrace.mode());
-        Log.i("YCLean", "v3.4-debug identity provider entered; mode=" + StartupTrace.mode());
+        Log.i("YCLean", "v3.4.1-debug identity provider entered; mode=" + StartupTrace.mode());
         if (StartupTrace.mode() == StartupTrace.Mode.OFF) {
             StartupTrace.event("rules-disabled", "No engine, app hooks or instrumentation boundary");
         } else {

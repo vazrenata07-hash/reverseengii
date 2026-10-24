@@ -1,4 +1,4 @@
-# YC TV 1.15.4 — Lean v3.4-debug
+# YC TV 1.15.4 — Lean v3.4.1-debug
 
 ## Build de depuracao por fases
 
@@ -185,9 +185,9 @@ python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.4-debug.apk`. O workflow `YC TV Lean Build`
+Saída: `build/yc-tv-1.15.4-lean-v3.4.1-debug.apk`. O workflow `YC TV Lean Build`
 compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.4-debug`.
+fontes na release `yc-tv-1.15.4-lean-v3.4.1-debug`.
 
 ## Dependências e fontes
 

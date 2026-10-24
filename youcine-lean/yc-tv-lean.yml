@@ -45,7 +45,7 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile, ZIP_DEFLATED
           root = Path('youcine-lean')
-          with ZipFile(root / 'build/yc-tv-lean-v3.4-debug-source.zip', 'w', ZIP_DEFLATED) as z:
+          with ZipFile(root / 'build/yc-tv-lean-v3.4.1-debug-source.zip', 'w', ZIP_DEFLATED) as z:
               for p in sorted(root.rglob('*')):
                   if p.is_file() and 'build' not in p.relative_to(root).parts and '__pycache__' not in p.parts:
                       z.write(p, p.as_posix())
@@ -57,8 +57,8 @@ jobs:
           from zipfile import ZipFile, ZIP_DEFLATED
           import hashlib, json, os
           root = Path('youcine-lean/build')
-          manifest = {'commit': os.environ['GITHUB_SHA'], 'version': 'v3.4-debug', 'native': {}}
-          with ZipFile(root / 'yc-tv-v3.4-debug-symbols.zip', 'w', ZIP_DEFLATED) as archive:
+          manifest = {'commit': os.environ['GITHUB_SHA'], 'version': 'v3.4.1-debug', 'native': {}}
+          with ZipFile(root / 'yc-tv-v3.4.1-debug-symbols.zip', 'w', ZIP_DEFLATED) as archive:
               for abi in ('armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'):
                   symbol = root / 'native' / abi / 'libycidentity.so'
                   packed = root / 'native-libs' / abi / 'libycidentity.so'
@@ -72,8 +72,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          tag=yc-tv-1.15.4-lean-v3.4-debug
+          tag=yc-tv-1.15.4-lean-v3.4.1-debug
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YC TV 1.15.4 — Lean v3.4-debug experimental' --notes-file youcine-lean/README.md
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YC TV 1.15.4 — Lean v3.4.1-debug experimental' --notes-file youcine-lean/README.md
           fi
-          gh release upload "$tag" youcine-lean/build/yc-tv-1.15.4-lean-v3.4-debug.apk youcine-lean/build/SHA256SUMS.txt youcine-lean/build/yc-tv-lean-v3.4-debug-source.zip youcine-lean/build/yc-tv-v3.4-debug-symbols.zip youcine-lean/build/build-identity.json --clobber
+          gh release upload "$tag" youcine-lean/build/yc-tv-1.15.4-lean-v3.4.1-debug.apk youcine-lean/build/SHA256SUMS.txt youcine-lean/build/yc-tv-lean-v3.4.1-debug-source.zip youcine-lean/build/yc-tv-v3.4.1-debug-symbols.zip youcine-lean/build/build-identity.json --clobber

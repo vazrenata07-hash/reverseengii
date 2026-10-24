@@ -16,7 +16,7 @@ import org.json.JSONObject;
 /** Diagnostic build only: stage journal independent of Java/native log filters. */
 final class StartupTrace {
     enum Mode { OFF, BOUNDARY, RUNTIME, BEANS, PROPERTIES, FULL }
-    static final String VERSION = "v3.4-debug";
+    static final String VERSION = "v3.4.1-debug";
     private static Mode mode = Mode.OFF;
     private static String run = "manual";
     private static File directory;
@@ -39,7 +39,9 @@ final class StartupTrace {
                 if (requested.matches("[A-Za-z0-9_-]{1,80}")) run = requested;
             }
             journal = new File(directory, "trace-" + run + ".jsonl");
-            try (FileOutputStream output = new FileOutputStream(journal, false)) {
+            // Run IDs are unique across phases. Append so a restarted process
+            // cannot erase the fatal event of the previous PID in this run.
+            try (FileOutputStream output = new FileOutputStream(journal, true)) {
                 output.write(new byte[0]);
                 output.getFD().sync();
             }
