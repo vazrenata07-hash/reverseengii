@@ -26,14 +26,17 @@ final class IdentityRules {
         if (context == null || !NativeRuntime.load(context)) return;
         runtime = true;
         ClassLoader loader = context.getClassLoader();
-        retryBeans(loader);
-        try { installPersistence(context, loader); }
+        StartupTrace.event("rules-selected", "mode=" + StartupTrace.mode() + " loader=" + loader.getClass().getName());
+        try { StartupTrace.inventory(candidates(loader)); }
+        catch (Exception failure) { StartupTrace.failure("class-inventory-failed", failure); }
+        if (StartupTrace.beans()) retryBeans(loader);
+        try { if (StartupTrace.properties()) installPersistence(context, loader); }
         catch (Exception failure) { NativeRuntime.warn("Properties rule discovery failed", failure); }
         catch (LinkageError failure) { NativeRuntime.warn("Properties rule unavailable", failure); }
     }
 
     static synchronized void retryBeans(ClassLoader loader) {
-        if (!runtime || INSTALLED.size() >= 2 || retries++ >= 4) return;
+        if (!runtime || !StartupTrace.beans() || INSTALLED.size() >= 2 || retries++ >= 4) return;
         List<String> names;
         try { names = candidates(loader); }
         catch (Exception failure) {
@@ -93,8 +96,10 @@ final class IdentityRules {
             }
             if (selected == null) throw new IllegalStateException("Request constructor schema differs from reference");
             selected.setAccessible(true);
+            StartupTrace.event("bean-hook-enter", name);
             if (!MethodHook.constructor(selected, fingerprint, strings)) throw new IllegalStateException("Constructor hook rejected");
             INSTALLED.add(role);
+            StartupTrace.event("bean-hook-installed", name);
             NativeRuntime.info("Request fingerprint hook installed: " + name + " mask=" + (1 << fingerprint));
         } catch (Exception failure) {
             NativeRuntime.warn("Request identity rule not installed: " + name, failure);
@@ -164,7 +169,9 @@ final class IdentityRules {
             return;
         }
         selected.writer.setAccessible(true);
+        StartupTrace.event("properties-hook-enter", selected.type.getName() + "." + selected.writer.getName());
         if (!MethodHook.noOp(selected.writer)) throw new IllegalStateException("Properties writer hook rejected");
+        StartupTrace.event("properties-hook-installed", selected.type.getName() + "." + selected.writer.getName());
         // t() was also an empty routine in the supplied mod. Only use that
         // name for the reference class; renamed classes require new evidence.
         if (selected.type.getName().equals("i2.f") && selected.reset != null) {

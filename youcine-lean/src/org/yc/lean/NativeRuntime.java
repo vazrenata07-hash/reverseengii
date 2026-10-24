@@ -25,10 +25,12 @@ final class NativeRuntime {
     static synchronized boolean load(Context context) {
         if (attempted) return available;
         attempted = true;
+        StartupTrace.event("engine-enter", "mode=" + StartupTrace.mode());
         try {
             // os.arch is ARM64 in the supplied MEmu process, while its ART and
             // executable are x86_64. Read the VM executable's actual ELF ISA.
             String abi = executableAbi();
+            StartupTrace.event("engine-abi", abi);
             File directory = new File(context.getCodeCacheDir(), "yc_identity/" + abi);
             if (!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create hook directory");
             File library, dex;
@@ -43,15 +45,19 @@ final class NativeRuntime {
             while (boot.getParent() != null) boot = boot.getParent();
             engineLoader = new DexClassLoader(dex.getAbsolutePath(), directory.getAbsolutePath(), directory.getAbsolutePath(), boot);
             Class<?> entry = Class.forName("org.yc.lean.EngineEntry", true, engineLoader);
+            StartupTrace.event("engine-load-enter", "abi=" + abi + " loader=" + engineLoader.getClass().getName());
             Object result = entry.getMethod("load", String.class, Class.class, Class.class)
                     .invoke(null, library.getAbsolutePath(), NativeRuntime.class, MethodHook.class);
             bound = true;
             available = Boolean.TRUE.equals(result) && ready();
+            StartupTrace.event("engine-load-return", "ready=" + available + " abi=" + abi);
             info("ART identity runtime ready=" + available + " VM ABI=" + abi + " loader=isolated");
         } catch (Exception failure) {
             Throwable cause = failure instanceof InvocationTargetException ? ((InvocationTargetException) failure).getCause() : failure;
+            StartupTrace.failure("engine-failed", cause);
             warn("ART identity runtime unavailable", cause);
         } catch (LinkageError failure) {
+            StartupTrace.failure("engine-linkage-failed", failure);
             warn("ART identity runtime could not load", failure);
         }
         return available;
@@ -65,7 +71,11 @@ final class NativeRuntime {
         write(Log.WARN, message + "\n" + stack);
     }
     private static void write(int priority, String message) {
-        if (bound) { log0(priority, message); return; }
+        StartupTrace.event("log", message);
+        if (bound) {
+            try { log0(priority, message); return; }
+            catch (LinkageError failure) { StartupTrace.failure("native-log-failed", failure); }
+        }
         Log.println(priority, "YCLean", message);
     }
 

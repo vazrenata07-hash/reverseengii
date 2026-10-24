@@ -9,8 +9,14 @@ import android.util.Log;
 /** Schedules rules; never initializes ART while providers are being installed. */
 public final class IdentityProvider extends ContentProvider {
     @Override public boolean onCreate() {
-        Log.i("YCLean", "v3.3.3 identity provider entered; scheduling only");
-        AfterApplication.schedule(getContext());
+        StartupTrace.initialize(getContext());
+        StartupTrace.event("provider-enter", "mode=" + StartupTrace.mode());
+        Log.i("YCLean", "v3.4-debug identity provider entered; mode=" + StartupTrace.mode());
+        if (StartupTrace.mode() == StartupTrace.Mode.OFF) {
+            StartupTrace.event("rules-disabled", "No engine, app hooks or instrumentation boundary");
+        } else {
+            AfterApplication.schedule(getContext());
+        }
         return true;
     }
     @Override public Cursor query(Uri uri, String[] projection, String selection, String[] arguments, String order) { return null; }

@@ -45,18 +45,35 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile, ZIP_DEFLATED
           root = Path('youcine-lean')
-          with ZipFile(root / 'build/yc-tv-lean-v3.3.3-source.zip', 'w', ZIP_DEFLATED) as z:
+          with ZipFile(root / 'build/yc-tv-lean-v3.4-debug-source.zip', 'w', ZIP_DEFLATED) as z:
               for p in sorted(root.rglob('*')):
                   if p.is_file() and 'build' not in p.relative_to(root).parts and '__pycache__' not in p.parts:
                       z.write(p, p.as_posix())
+          PY
+      - name: Package native symbols and build identity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import hashlib, json, os
+          root = Path('youcine-lean/build')
+          manifest = {'commit': os.environ['GITHUB_SHA'], 'version': 'v3.4-debug', 'native': {}}
+          with ZipFile(root / 'yc-tv-v3.4-debug-symbols.zip', 'w', ZIP_DEFLATED) as archive:
+              for abi in ('armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'):
+                  symbol = root / 'native' / abi / 'libycidentity.so'
+                  packed = root / 'native-libs' / abi / 'libycidentity.so'
+                  archive.write(symbol, abi + '/libycidentity.so')
+                  manifest['native'][abi] = {'packed_sha256': hashlib.sha256(packed.read_bytes()).hexdigest(), 'symbols_sha256': hashlib.sha256(symbol.read_bytes()).hexdigest()}
+              archive.writestr('build-identity.json', json.dumps(manifest, indent=2))
+          (root / 'build-identity.json').write_text(json.dumps(manifest, indent=2))
           PY
       - name: Publish APK and source
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          tag=yc-tv-1.15.4-lean-v3.3.3
+          tag=yc-tv-1.15.4-lean-v3.4-debug
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YC TV 1.15.4 — Lean v3.3.3 experimental' --notes-file youcine-lean/README.md
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --title 'YC TV 1.15.4 — Lean v3.4-debug experimental' --notes-file youcine-lean/README.md
           fi
-          gh release upload "$tag" youcine-lean/build/yc-tv-1.15.4-lean-v3.3.3.apk youcine-lean/build/SHA256SUMS.txt youcine-lean/build/yc-tv-lean-v3.3.3-source.zip --clobber
+          gh release upload "$tag" youcine-lean/build/yc-tv-1.15.4-lean-v3.4-debug.apk youcine-lean/build/SHA256SUMS.txt youcine-lean/build/yc-tv-lean-v3.4-debug-source.zip youcine-lean/build/yc-tv-v3.4-debug-symbols.zip youcine-lean/build/build-identity.json --clobber

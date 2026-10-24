@@ -1,4 +1,40 @@
-# YC TV 1.15.4 — Lean v3.3.3 experimental
+# YC TV 1.15.4 — Lean v3.4-debug
+
+## Build de depuracao por fases
+
+Esta entrega prepara uma comparacao controlada para localizar a regressao.
+Nao e apresentada como correcao comprovada ou como trial funcional. A causa
+do crash relatado na v3.3.3 ainda nao foi estabelecida pelo log dessa versao.
+
+O padrao desta build e OFF: mantem carregador/imagem original, registra o
+provider e nao inicializa o motor nem instala a fronteira Instrumentation.
+Um arquivo proprio `diagnostic.properties`, em getExternalFilesDir("yc_lean"),
+permite ao coletor selecionar OFF, BOUNDARY, RUNTIME, BEANS, PROPERTIES ou
+FULL. A selecao e lida uma vez por processo. Somente BOUNDARY ativa a fronteira
+sem motor; RUNTIME inicializa LSPlant sem hooks de app; BEANS e PROPERTIES
+isolam as duas familias; FULL combina ambas. A inicializacao LSPlant em si
+instala hooks internos de ART, por isso RUNTIME e separado de OFF/BOUNDARY.
+
+StartupTrace grava um diario JSONL por execucao, independente de Logcat,
+com versao, identificador da coleta, PID/TID, tempo, modo e cada fronteira de
+inicializacao. Registra entrada, retorno e excecao do Application.onCreate,
+arquitetura da VM, carga do motor, instalacao de cada hook e ciclo de Activity.
+Um observador de excecao Java delega ao handler original. Os erros continuam
+a seguir o fluxo normal do Android. A copia de nomes de classes, quando o
+motor esta ativo, permite examinar os DTO disponiveis sem dados de sessao.
+
+O coletor efetua OFF inicial, BOUNDARY, RUNTIME, BEANS, PROPERTIES, FULL e OFF
+final com dados preservados, marcadores distintos, pilhas Java/nativas,
+mapas, metadados do APK e diarios. Compara o SHA-256 exato e verifica o modo
+efetivamente registrado pelo app. Falta de diario ou modo divergente nao e
+contada como fase valida. Os mesmos dados e caches sao usados em todas as
+fases; a ordem pode influenciar o resultado. A comparacao identifica a etapa
+associada a falha e nao prova por si uma causa unica.
+
+A release inclui simbolos nativos nao removidos e build-identity.json com
+commit e hashes dos auxiliares empacotados, para simbolicar uma pilha nativa
+contra o binario correto. O agente compila, empacota e assina. A execucao
+dos cenarios continua com o usuario.
 
 ## Correcao v3.3.3
 
@@ -149,9 +185,9 @@ python3 build_native.py
 python3 build.py
 ```
 
-Saída: `build/yc-tv-1.15.4-lean-v3.3.3.apk`. O workflow `YC TV Lean Build`
+Saída: `build/yc-tv-1.15.4-lean-v3.4-debug.apk`. O workflow `YC TV Lean Build`
 compila as quatro arquiteturas, empacota, assina e publica APK, SHA-256 e
-fontes na release `yc-tv-1.15.4-lean-v3.3.3`.
+fontes na release `yc-tv-1.15.4-lean-v3.4-debug`.
 
 ## Dependências e fontes
 
